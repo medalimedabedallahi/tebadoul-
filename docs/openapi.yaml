@@ -1,0 +1,67 @@
+openapi: 3.1.0
+info:
+  title: Badal API
+  version: 0.1.0
+  description: API REST versionnee de la plateforme Badal.
+servers:
+  - url: http://localhost:8098/api/v1
+    description: Environnement local
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      summary: Verifier que l'API est disponible
+      tags:
+        - System
+      responses:
+        '200':
+          description: API disponible
+          headers:
+            X-Request-ID:
+              description: Identifiant de correlation genere par le serveur.
+              schema:
+                type: string
+                format: uuid
+            X-RateLimit-Limit:
+              description: Limite de requetes pour la fenetre courante.
+              schema:
+                type: integer
+            X-RateLimit-Remaining:
+              description: Requetes restantes pour la fenetre courante.
+              schema:
+                type: integer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          type: object
+          required:
+            - status
+            - service
+            - version
+            - request_id
+            - timestamp
+          properties:
+            status:
+              type: string
+              const: ok
+            service:
+              type: string
+              const: badal-api
+            version:
+              type: string
+              const: v1
+            request_id:
+              type: string
+              format: uuid
+            timestamp:
+              type: string
+              format: date-time

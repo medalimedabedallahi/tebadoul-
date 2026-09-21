@@ -1,0 +1,11 @@
+.git
+.github
+.prd_review
+.env
+node_modules
+public/build
+storage/logs/*
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
+vendor
