@@ -1,0 +1,11 @@
+# Configuration gitleaks (job `secrets-scan` de .github/workflows/ci.yml) : regles par defaut, plus des exceptions
+# volontairement etroites. N'ajouter une exception que pour une valeur fictive, jamais pour un vrai secret.
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Mot de passe fictif des comptes de test (factories, base jetable) : pas un secret"
+condition = "AND"
+paths = ['''^tests/''']
+regexes = ['''^Correct-horse-2026-battery$''']

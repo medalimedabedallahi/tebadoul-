@@ -59,24 +59,38 @@ http_status() {
     curl --silent --output /dev/null --write-out '%{http_code}' --max-time 10 "$1"
 }
 
-app_key="base64:$(head -c 32 /dev/urandom | base64)"
+app_key="base64:$(head -c 32 /dev/urandom | base64 | tr -d '\r\n')"
+
+# Configuration minimale qui passe les garde-fous de demarrage de production (AppServiceProvider : APP_DEBUG,
+# SMS_DRIVER, MAIL_MAILER). Chaque controle negatif ne change qu'UNE variable par rapport a elle : il echoue
+# ainsi pour la raison qu'il annonce, et non parce qu'un autre garde-fou refuse deja le demarrage.
+valid_env=(
+    -e APP_KEY="$app_key" -e APP_DEBUG=false
+    -e SMS_DRIVER=log -e SMS_ALLOW_LOG_DRIVER=true
+    -e MAIL_MAILER=smtp -e MAIL_HOST=mail.invalid
+)
+
+# Vrai si l'image refuse de demarrer avec la configuration valide modifiee par les arguments -e donnes.
+refuses_to_boot() {
+    ! docker run --rm "${valid_env[@]}" "$@" "$app_image" php artisan --version
+}
 
 # --- Controles sans conteneur long ---
 check "l'image PHP tourne en non-root" bash -c "[[ \"\$(docker run --rm --entrypoint id '$app_image' -u)\" != 0 ]]"
 check "composer absent de l'image PHP" bash -c "! docker run --rm --entrypoint which '$app_image' composer"
 check "extensions PHP (redis, pdo_pgsql, intl, pcntl, zip, opcache)" \
     docker run --rm --entrypoint php "$app_image" -r 'exit(count(array_filter(["redis","pdo_pgsql","intl","pcntl","zip","Zend OPcache"], "extension_loaded")) === 6 ? 0 : 1);'
-check "demarrage refuse avec APP_DEBUG=true" \
-    bash -c "! docker run --rm -e APP_KEY='$app_key' -e APP_DEBUG=true '$app_image' php artisan --version"
-check "demarrage refuse sans APP_KEY" \
-    bash -c "! docker run --rm '$app_image' php artisan --version"
 check "demarrage OK avec une configuration valide" \
-    docker run --rm -e APP_KEY="$app_key" -e APP_DEBUG=false "$app_image" php artisan --version
+    docker run --rm "${valid_env[@]}" "$app_image" php artisan --version
+check "demarrage refuse avec APP_DEBUG=true" refuses_to_boot -e APP_DEBUG=true
+check "demarrage refuse sans APP_KEY" refuses_to_boot -e APP_KEY=
+check "demarrage refuse avec SMS_DRIVER=log sans derogation" refuses_to_boot -e SMS_ALLOW_LOG_DRIVER=false
+check "demarrage refuse avec MAIL_MAILER=log" refuses_to_boot -e MAIL_MAILER=log
 
 # --- Pile applicative ---
 docker network create "$network" >/dev/null
 docker run -d --rm --name "$app_container" --network "$network" --network-alias app \
-    -e APP_KEY="$app_key" -e APP_ENV=production -e APP_DEBUG=false -e APP_URL=http://localhost \
+    "${valid_env[@]}" -e APP_ENV=production -e APP_URL=http://localhost \
     -e SESSION_DRIVER=array -e CACHE_STORE=array -e QUEUE_CONNECTION=sync -e LOG_STACK=stderr \
     "$app_image" >/dev/null
 docker run -d --rm --name "$web_container" --network "$network" \
