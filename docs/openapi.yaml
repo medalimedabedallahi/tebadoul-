@@ -1,41 +1,2297 @@
 openapi: 3.1.0
 info:
   title: Badal API
-  version: 0.1.0
-  description: API REST versionnee de la plateforme Badal.
+  version: 0.11.0
+  description: |
+    API REST versionnee de la plateforme Badal.
+
+    ## Conventions
+
+    - Toutes les reponses sont en JSON et portent l'en-tete `X-Request-ID`, genere par le serveur
+      (jamais repris du client). Le meme identifiant figure dans le champ `request_id` des erreurs
+      et dans les journaux : le communiquer au support.
+    - La langue des messages se choisit avec l'en-tete `Accept-Language` (`fr` ou `ar`, `fr` par
+      defaut). Seul le champ `message` est traduit ; `code` et les cles de `errors` sont stables.
+    - Les erreurs suivent toutes le schema `Error` (voir `components/responses`). Les clients
+      s'appuient sur `code`, jamais sur `message`.
+    - Une limite de debit est appliquee par route ; en cas de depassement la reponse est `429` avec
+      l'en-tete `Retry-After` (secondes).
+    - Les listes paginees suivent le schema `Pagination` (parametres `page` et `per_page`).
+
+    ## Authentification
+
+    Le schema `bearerAuth` designe un jeton personnel Laravel Sanctum, envoye dans
+    `Authorization: Bearer <id>|bdl_...`. Le prefixe `bdl_` (present apres le `|`) permet aux outils
+    de detection de secrets de reperer un jeton divulgue. Les jetons expirent (7 jours par defaut).
+
+    ## Anti-enumeration
+
+    L'inscription, la demande de code de verification et la demande de reinitialisation de mot de
+    passe repondent toujours `202` avec le meme corps generique, que le contact existe deja ou non.
+    La connexion renvoie la meme erreur `401` (`invalid_credentials`) pour un identifiant inconnu,
+    un contact non verifie et un mot de passe errone. La verification d'un contact renvoie la meme
+    erreur `422` (`invalid_verification_code`) pour un code inconnu, expire, deja utilise ou
+    verrouille.
+
+    ## Abilities des jetons
+
+    Seul un compte actif utilisant un contact verifie peut se connecter. Chaque jeton emis porte
+    l'ability `access-api`. Un compte en attente de verification ou un contact non verifie recoit
+    `401 invalid_credentials` et aucun jeton.
 servers:
   - url: http://localhost:8098/api/v1
     description: Environnement local
+tags:
+  - name: System
+    description: Etat du service.
+  - name: Auth
+    description: Inscription, connexion, verification des contacts et mots de passe.
+  - name: Profile
+    description: Profil professionnel du compte authentifie.
+  - name: MobilityRequests
+    description: Demandes de mobilite du compte authentifie et leur cycle de vie.
+  - name: Matches
+    description: Correspondances directes, score explique et version des regles.
+  - name: Notifications
+    description: Notifications internes du compte authentifie et preferences d'envoi.
+  - name: Admin
+    description: Operations sensibles reservees a l'administration.
+  - name: References
+    description: Referentiels publics en lecture seule (secteurs, professions, geographie, etablissements).
 paths:
   /health:
     get:
       operationId: getHealth
       summary: Verifier que l'API est disponible
+      description: >-
+        Route publique, soumise a la limite de debit `api` (120 requetes par minute et par IP).
+        Elle ne verifie ni la base de donnees ni Redis.
       tags:
         - System
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
       responses:
         '200':
           description: API disponible
           headers:
             X-Request-ID:
-              description: Identifiant de correlation genere par le serveur.
-              schema:
-                type: string
-                format: uuid
+              $ref: '#/components/headers/XRequestId'
+            Content-Language:
+              $ref: '#/components/headers/ContentLanguage'
             X-RateLimit-Limit:
-              description: Limite de requetes pour la fenetre courante.
-              schema:
-                type: integer
+              $ref: '#/components/headers/XRateLimitLimit'
             X-RateLimit-Remaining:
-              description: Requetes restantes pour la fenetre courante.
-              schema:
-                type: integer
+              $ref: '#/components/headers/XRateLimitRemaining'
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HealthResponse'
+        '405':
+          $ref: '#/components/responses/MethodNotAllowed'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /references/sectors:
+    get:
+      operationId: listSectors
+      summary: Lister les secteurs
+      description: Secteurs actifs (Enseignement, Sante). Route publique.
+      tags: [References]
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+      responses:
+        '200':
+          $ref: '#/components/responses/ReferenceList'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /references/professions:
+    get:
+      operationId: listProfessions
+      summary: Lister les professions
+      description: Professions ou corps actifs, avec filtre facultatif par secteur. Route publique.
+      tags: [References]
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - name: sector
+          in: query
+          required: false
+          description: Code du secteur. Un code inconnu renvoie une liste vide.
+          schema:
+            type: string
+            maxLength: 64
+      responses:
+        '200':
+          $ref: '#/components/responses/ReferenceList'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /references/specialties:
+    get:
+      operationId: listSpecialties
+      summary: Lister les specialites
+      description: Specialites ou matieres actives, avec filtre facultatif par profession. Route publique.
+      tags: [References]
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - $ref: '#/components/parameters/ProfessionFilter'
+      responses:
+        '200':
+          $ref: '#/components/responses/ReferenceList'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /references/grades:
+    get:
+      operationId: listGrades
+      summary: Lister les grades
+      description: Grades actifs, avec filtre facultatif par profession. Route publique.
+      tags: [References]
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - $ref: '#/components/parameters/ProfessionFilter'
+      responses:
+        '200':
+          $ref: '#/components/responses/ReferenceList'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /references/wilayas:
+    get:
+      operationId: listWilayas
+      summary: Lister les wilayas
+      description: Wilayas actives. Route publique.
+      tags: [References]
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+      responses:
+        '200':
+          $ref: '#/components/responses/ReferenceList'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /references/wilayas/{wilayaCode}/moughataas:
+    get:
+      operationId: listMoughataas
+      summary: Lister les moughataas d'une wilaya
+      description: Moughataas actives d'une wilaya active. Route publique.
+      tags: [References]
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - name: wilayaCode
+          in: path
+          required: true
+          description: Code de la wilaya (par exemple `06`).
+          schema:
+            type: string
+            maxLength: 64
+      responses:
+        '200':
+          $ref: '#/components/responses/ReferenceList'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /references/establishments:
+    get:
+      operationId: listEstablishments
+      summary: Rechercher des etablissements
+      description: >-
+        Etablissements actifs, filtres par secteur, wilaya, moughataa et nom (recherche insensible a
+        la casse sur les noms francais et arabe), tries par nom. Route publique.
+      tags: [References]
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+        - name: sector
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 64
+        - name: wilaya
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 64
+        - name: moughataa
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 64
+        - name: q
+          in: query
+          required: false
+          description: Partie du nom recherche.
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 100
+      responses:
+        '200':
+          description: Etablissements pagines.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EstablishmentCollection'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /auth/register:
+    post:
+      operationId: registerUser
+      summary: Creer un compte (courriel et/ou telephone)
+      description: >-
+        Cree un compte avec un mot de passe et au moins un moyen de contact (courriel, telephone,
+        ou les deux) ; un code de verification est envoye a chaque contact fourni. Le compte est
+        cree avec le statut `pending_verification`. Limite de debit `register`. Accepte
+        `Idempotency-Key` pour rendre un renvoi sans double effet.
+      tags: [Auth]
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '202':
+          $ref: '#/components/responses/AcceptedMessage'
+        '409':
+          description: Une requete avec la meme `Idempotency-Key` est deja en cours de traitement.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+            Retry-After:
+              $ref: '#/components/headers/RetryAfter'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: A request with this Idempotency-Key is still being processed.
+                code: idempotency_request_in_progress
+                request_id: 0b5b7f1e-6f38-4e0c-9a0c-3f3c3f5e2a11
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /auth/login:
+    post:
+      operationId: loginUser
+      summary: Se connecter et obtenir un jeton
+      description: >-
+        Authentifie un compte actif par courriel ou telephone verifie. Un contact non verifie ou un
+        compte en attente de verification recoit la meme erreur que des identifiants invalides.
+        Limite de debit `login`.
+      tags: [Auth]
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Connexion reussie.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthTokenResponse'
+        '401':
+          $ref: '#/components/responses/InvalidCredentials'
+        '403':
+          $ref: '#/components/responses/AccountSuspended'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /auth/logout:
+    post:
+      operationId: logoutUser
+      summary: Revoquer le jeton courant
+      description: Revoque uniquement le jeton Sanctum ayant authentifie la requete ; les autres appareils restent connectes.
+      tags: [Auth]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+      responses:
+        '204':
+          description: Jeton revoque.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /auth/me:
+    get:
+      operationId: getMe
+      summary: Profil du compte connecte
+      description: >-
+        Renvoie le profil du compte authentifie. Les contacts ne sont jamais renvoyes en clair
+        (uniquement masques) et l'identifiant interne n'est jamais expose.
+      tags: [Auth]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+      responses:
+        '200':
+          description: Profil du compte.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /auth/password:
+    put:
+      operationId: changePassword
+      summary: Changer son mot de passe
+      description: >-
+        Change le mot de passe du compte connecte apres verification de l'ancien. Revoque tous les
+        autres jetons Sanctum du compte (le jeton courant reste valide). Necessite l'ability
+        `access-api`. Limite de debit `password-update`.
+      tags: [Auth]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
+      responses:
+        '204':
+          description: Mot de passe change.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /auth/contacts/verification/send:
+    post:
+      operationId: sendContactVerification
+      summary: Envoyer un code de verification de contact
+      description: >-
+        Envoie un code de verification au contact indique, s'il est associe a un compte et n'est
+        pas deja verifie. Reponse generique `202` identique que le contact existe ou non
+        (anti-enumeration). Le renvoi invalide le code precedemment emis. Limite de debit
+        `otp-send`.
+      tags: [Auth]
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContactRequest'
+      responses:
+        '202':
+          $ref: '#/components/responses/AcceptedMessage'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /auth/contacts/verification/verify:
+    post:
+      operationId: verifyContact
+      summary: Verifier un contact avec son code
+      description: >-
+        Verifie un contact avec le code recu. Active le compte (`active`) s'il etait
+        `pending_verification`. Un code faux, expire, deja utilise ou verrouille apres trop de
+        tentatives renvoie la meme erreur `422` (`invalid_verification_code`). Limite de debit
+        `otp-verify`.
+      tags: [Auth]
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyContactRequest'
+      responses:
+        '200':
+          description: Contact verifie.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerifiedResponse'
+        '422':
+          $ref: '#/components/responses/ValidationOrCodeError'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /auth/password/forgot:
+    post:
+      operationId: requestPasswordReset
+      summary: Demander la reinitialisation du mot de passe
+      description: >-
+        Envoie un code de reinitialisation au contact indique (courriel ou telephone ; fonctionne
+        pour un compte identifie uniquement par telephone). Reponse generique `202` identique que
+        le contact existe ou non. Limite de debit `password-reset`.
+      tags: [Auth]
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContactRequest'
+      responses:
+        '202':
+          $ref: '#/components/responses/AcceptedMessage'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /auth/password/reset:
+    post:
+      operationId: resetPassword
+      summary: Reinitialiser le mot de passe avec un code
+      description: >-
+        Definit un nouveau mot de passe avec le code recu par `POST /auth/password/forgot`. Revoque
+        TOUS les jetons Sanctum du compte. Un code faux, expire, deja utilise ou verrouille renvoie
+        la meme erreur `422` (`invalid_verification_code`). Limite de debit `otp-verify`.
+      tags: [Auth]
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordRequest'
+      responses:
+        '200':
+          description: Mot de passe reinitialise.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResetResponse'
+        '422':
+          $ref: '#/components/responses/ValidationOrCodeError'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /me/profile:
+    get:
+      operationId: getProfessionalProfile
+      summary: Lire mon profil professionnel
+      description: >-
+        Profil professionnel du compte authentifie. `404 not_found` tant qu'aucun profil n'a ete
+        enregistre. Reserve a un compte actif avec l'ability `access-api`.
+      tags: [Profile]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+      responses:
+        '200':
+          $ref: '#/components/responses/ProfessionalProfile'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    put:
+      operationId: putProfessionalProfile
+      summary: Creer ou remplacer mon profil professionnel
+      description: >-
+        Remplace entierement le profil (un seul par compte). Les references sont donnees par code
+        et doivent etre actives et coherentes : profession du secteur, specialite et grade de la
+        profession, moughataa de la wilaya, etablissement de cette moughataa et de ce secteur. La
+        specialite (ou le grade) est obligatoire si la profession en possede au moins une active,
+        et doit etre vide sinon. Une reference incoherente renvoie `422` sur son propre champ.
+        `201` a la creation, `200` au remplacement.
+      tags: [Profile]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProfessionalProfileRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/ProfessionalProfile'
+        '201':
+          $ref: '#/components/responses/ProfessionalProfile'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /me/preferences:
+    patch:
+      operationId: updatePreferences
+      summary: Modifier les preferences de notification
+      description: >-
+        Active ou desactive la copie par courriel des notifications importantes et choisit la
+        langue des courriels. Les notifications internes ne peuvent pas etre desactivees. Seuls
+        les champs envoyes sont modifies.
+      tags: [Notifications]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email_notifications: { type: boolean }
+                locale: { type: string, enum: [fr, ar] }
+      responses:
+        '200':
+          description: Preferences enregistrees ; le compte est renvoye.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/ServerError' }
+  /notifications:
+    get:
+      operationId: listNotifications
+      summary: Lister les notifications
+      description: >-
+        Notifications du compte, de la plus recente a la plus ancienne. Chacune porte un `type`
+        et l'identifiant public de la correspondance concernee, jamais de coordonnees ni de
+        contenu de message. Tant qu'une notification d'un type donne sur une correspondance
+        n'est pas lue, un nouvel evenement identique n'en cree pas d'autre.
+      tags: [Notifications]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+        - name: unread
+          in: query
+          description: '`1` pour ne lister que les notifications non lues.'
+          schema: { type: boolean }
+      responses:
+        '200':
+          description: Notifications paginees, avec le nombre de non lues dans `meta.unread_count`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserNotificationCollection' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/ServerError' }
+  /notifications/read-all:
+    post:
+      operationId: markAllNotificationsRead
+      summary: Tout marquer comme lu
+      description: Marque comme lues toutes les notifications non lues du compte, et seulement celles-ci.
+      tags: [Notifications]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+      responses:
+        '200':
+          description: Nombre de notifications marquees par cet appel.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [marked]
+                    properties:
+                      marked: { type: integer, minimum: 0 }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/ServerError' }
+  /notifications/{notificationId}/read:
+    post:
+      operationId: markNotificationRead
+      summary: Marquer une notification comme lue
+      description: >-
+        Idempotent : la premiere date de lecture est conservee. La notification d'un autre compte
+        repond `404`, comme une notification inconnue.
+      tags: [Notifications]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - name: notificationId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Notification lue.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserNotificationResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/ServerError' }
+  /mobility-requests:
+    get:
+      operationId: listMobilityRequests
+      summary: Lister mes demandes de mobilite
+      description: Demandes du compte authentifie (hors supprimees), de la plus recente a la plus ancienne.
+      tags: [MobilityRequests]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - $ref: '#/components/parameters/Page'
+        - name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+      responses:
+        '200':
+          description: Demandes paginees.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MobilityRequestCollection'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    post:
+      operationId: createMobilityRequest
+      summary: Creer une demande (brouillon)
+      description: >-
+        Cree une demande au statut `draft`. Les destinations (1 a 5, par ordre de preference) sont
+        donnees par code ; une destination identique a l'affectation actuelle du profil est
+        refusee. L'expiration est comprise entre aujourd'hui et 365 jours, et posterieure a la
+        disponibilite. Accepte `Idempotency-Key`.
+      tags: [MobilityRequests]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MobilityRequestInput'
+      responses:
+        '201':
+          $ref: '#/components/responses/MobilityRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /mobility-requests/{mobilityRequestId}:
+    parameters:
+      - $ref: '#/components/parameters/MobilityRequestId'
+    get:
+      operationId: getMobilityRequest
+      summary: Lire une de mes demandes
+      description: Une demande du compte authentifie, avec ses destinations et `allowed_actions`. Une demande d'un autre compte renvoie 404.
+      tags: [MobilityRequests]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+      responses:
+        '200':
+          $ref: '#/components/responses/MobilityRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    patch:
+      operationId: updateMobilityRequest
+      summary: Modifier une de mes demandes
+      description: >-
+        Seuls les champs fournis changent ; `destinations`, s'il est fourni, remplace toute la
+        liste. Possible aux statuts `draft`, `published`, `paused` et `expired` (voir
+        `allowed_actions`), sinon `409 invalid_request_transition`.
+      tags: [MobilityRequests]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MobilityRequestPatch'
+      responses:
+        '200':
+          $ref: '#/components/responses/MobilityRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/RequestConflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    delete:
+      operationId: deleteMobilityRequest
+      summary: Supprimer une de mes demandes
+      description: >-
+        Suppression logique, possible aux statuts `draft`, `paused`, `expired` et `closed`. Une
+        demande publiee ou en accord doit d'abord etre mise en pause ou cloturee.
+      tags: [MobilityRequests]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+      responses:
+        '204':
+          description: Demande supprimee.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/RequestConflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /mobility-requests/{mobilityRequestId}/publish:
+    parameters:
+      - $ref: '#/components/parameters/MobilityRequestId'
+    post:
+      operationId: publishMobilityRequest
+      summary: Publier (ou reprendre) une demande
+      description: >-
+        `draft` ou `paused` vers `published`. Exige un profil professionnel, des destinations
+        toujours valides, une expiration non depassee et aucune autre demande active du compte
+        (`published`, `paused` ou `matched`). Sinon `409 request_not_publishable` avec les raisons
+        dans `errors` (cles `profile`, `destinations`, `expires_at`, `status`).
+      tags: [MobilityRequests]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+      responses:
+        '200':
+          $ref: '#/components/responses/MobilityRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/RequestConflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /mobility-requests/{mobilityRequestId}/pause:
+    parameters:
+      - $ref: '#/components/parameters/MobilityRequestId'
+    post:
+      operationId: pauseMobilityRequest
+      summary: Mettre en pause une demande publiee
+      description: La demande n'est plus proposee mais reste la demande active du compte.
+      tags: [MobilityRequests]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+      responses:
+        '200':
+          $ref: '#/components/responses/MobilityRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/RequestConflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /mobility-requests/{mobilityRequestId}/renew:
+    parameters:
+      - $ref: '#/components/parameters/MobilityRequestId'
+    post:
+      operationId: renewMobilityRequest
+      summary: Renouveler une demande expiree
+      description: >-
+        `expired` vers `published` avec une nouvelle date d'expiration. Memes exigences que la
+        publication. Les demandes publiees ou en pause expirent automatiquement (tache horaire) le
+        lendemain de leur date d'expiration.
+      tags: [MobilityRequests]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [expires_at]
+              properties:
+                expires_at:
+                  type: string
+                  format: date
+      responses:
+        '200':
+          $ref: '#/components/responses/MobilityRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/RequestConflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /mobility-requests/{mobilityRequestId}/close:
+    parameters:
+      - $ref: '#/components/parameters/MobilityRequestId'
+    post:
+      operationId: closeMobilityRequest
+      summary: Cloturer une demande
+      description: Etat final. Impossible pour un brouillon (le supprimer).
+      tags: [MobilityRequests]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason:
+                  $ref: '#/components/schemas/RequestCloseReason'
+      responses:
+        '200':
+          $ref: '#/components/responses/MobilityRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/RequestConflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /matches:
+    get:
+      operationId: listMatches
+      summary: Lister mes correspondances
+      description: >-
+        Correspondances du compte authentifie, meilleur score d'abord. Les correspondances
+        `invalidated` sont masquees sauf avec `status=invalidated`. Tant que le matching est
+        desactive (regles de compatibilite en validation, ADR 0001), la liste reste vide.
+      tags: [Matches]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - $ref: '#/components/parameters/Page'
+        - name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/MatchStatus'
+        - name: mobility_request
+          in: query
+          required: false
+          description: ULID public d'une de mes demandes, pour n'afficher que ses correspondances.
+          schema:
+            type: string
+            pattern: '^[0-9A-HJKMNP-TV-Za-hjkmnp-tv-z]{26}$'
+      responses:
+        '200':
+          description: Correspondances paginees.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MatchCollection'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /matches/{matchId}:
+    get:
+      operationId: getMatch
+      summary: Lire une correspondance et ses raisons
+      description: >-
+        Detail d'une correspondance dont le compte est participant : l'autre demande (donnees de
+        compatibilite uniquement), le score et chaque critere qui l'explique. Une correspondance
+        d'autres comptes renvoie 404.
+      tags: [Matches]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - $ref: '#/components/parameters/MatchId'
+      responses:
+        '200':
+          description: La correspondance vue par le participant.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Match'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /matches/{matchId}/invitation:
+    post:
+      operationId: inviteToMatch
+      summary: Envoyer une invitation
+      description: >-
+        Transforme une suggestion en invitation. Inviter compte comme acceptation de l'emetteur,
+        mais ne partage aucune coordonnee. Le destinataire doit repondre avant l'echeance.
+      tags: [Matches]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - $ref: '#/components/parameters/MatchId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200': { $ref: '#/components/responses/Match' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/MatchConflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/ServerError' }
+  /matches/{matchId}/acceptance:
+    post:
+      operationId: acceptMatchInvitation
+      summary: Accepter une invitation
+      description: >-
+        Reserve au destinataire d'une invitation. L'accord devient mutuel et les deux demandes
+        deviennent `matched`. L'acceptation ne vaut pas consentement au partage des coordonnees.
+      tags: [Matches]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - $ref: '#/components/parameters/MatchId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200': { $ref: '#/components/responses/Match' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/MatchConflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/ServerError' }
+  /matches/{matchId}/decline:
+    post:
+      operationId: declineMatch
+      summary: Decliner une correspondance
+      description: Clot definitivement une suggestion ou une invitation recue, avec un motif facultatif et non libre.
+      tags: [Matches]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - $ref: '#/components/parameters/MatchId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: [string, 'null']
+                  enum: [not_interested, situation_changed, other, null]
+      responses:
+        '200': { $ref: '#/components/responses/Match' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/MatchConflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/ServerError' }
+  /matches/{matchId}/withdrawal:
+    post:
+      operationId: withdrawFromMatch
+      summary: Retirer sa participation
+      description: >-
+        Permet a l'emetteur d'annuler une invitation, ou a l'un des participants d'abandonner un
+        accord. Un abandon libere les demandes et revoque les consentements de contact.
+      tags: [Matches]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - $ref: '#/components/parameters/MatchId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200': { $ref: '#/components/responses/Match' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/MatchConflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/ServerError' }
+  /matches/{matchId}/contact-consent:
+    post:
+      operationId: grantMatchContactConsent
+      summary: Consentir au partage des coordonnees
+      description: >-
+        Enregistre le consentement explicite du participant pendant un accord. L'operation est
+        auditee et idempotente. Les coordonnees restent inaccessibles sans le consentement de l'autre participant.
+      tags: [Matches]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - $ref: '#/components/parameters/MatchId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200': { $ref: '#/components/responses/Match' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/MatchConflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/ServerError' }
+    delete:
+      operationId: revokeMatchContactConsent
+      summary: Revoquer le consentement de contact
+      description: Revoque le consentement et bloque immediatement tout nouvel acces. L'operation est auditee et idempotente.
+      tags: [Matches]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - $ref: '#/components/parameters/MatchId'
+      responses:
+        '200': { $ref: '#/components/responses/Match' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/ServerError' }
+  /matches/{matchId}/contact:
+    get:
+      operationId: revealMatchContact
+      summary: Lire les coordonnees consenties
+      description: >-
+        Renvoie uniquement les contacts verifies de l'autre participant lorsque l'accord est en
+        cours et que les deux consentements sont actifs. Chaque lecture est auditee.
+      tags: [Matches]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - $ref: '#/components/parameters/MatchId'
+      responses:
+        '200':
+          description: Coordonnees verifiees consenties.
+          headers:
+            X-Request-ID: { $ref: '#/components/headers/XRequestId' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ContactDetailsResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/ContactNotAuthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/ServerError' }
+  /matches/{matchId}/progress:
+    post:
+      operationId: updateMatchProgress
+      summary: Enregistrer une etape administrative
+      description: >-
+        Fait avancer un accord sans retour en arriere. `approved` clot les demandes comme
+        permutation terminee ; `rejected` les republie. Les deux etats revoquent les consentements.
+      tags: [Matches]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - $ref: '#/components/parameters/MatchId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  enum: [in_discussion, file_prepared, submitted, approved, rejected]
+      responses:
+        '200': { $ref: '#/components/responses/Match' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/MatchConflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/ServerError' }
+  /matches/{matchId}/messages:
+    get:
+      operationId: listMatchMessages
+      summary: Lister les messages d'une correspondance
+      description: Conversation paginee, du message le plus recent au plus ancien. Reservee aux deux participants.
+      tags: [Matches]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - $ref: '#/components/parameters/MatchId'
+        - $ref: '#/components/parameters/Page'
+        - name: per_page
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+      responses:
+        '200':
+          description: Messages pagines sans identifiant interne ni contact.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MatchMessageCollection' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/ServerError' }
+    post:
+      operationId: sendMatchMessage
+      summary: Envoyer un message
+      description: Disponible uniquement pendant un accord actif et en l'absence de blocage dans les deux sens.
+      tags: [Matches]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - $ref: '#/components/parameters/MatchId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [body]
+              properties:
+                body: { type: string, maxLength: 2000 }
+      responses:
+        '201':
+          description: Message cree.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MatchMessageResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/MatchConflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/ServerError' }
+  /matches/{matchId}/messages/{messageId}/read-receipt:
+    post:
+      operationId: markMatchMessageRead
+      summary: Marquer un message comme lu
+      description: Seul le destinataire peut confirmer la lecture. L'operation est idempotente.
+      tags: [Matches]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - $ref: '#/components/parameters/MatchId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - name: messageId
+          in: path
+          required: true
+          schema: { type: string, pattern: '^[0-9A-HJKMNP-TV-Za-hjkmnp-tv-z]{26}$' }
+      responses:
+        '200':
+          description: Accuse de lecture enregistre ou deja present.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MatchMessageResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/ServerError' }
+  /matches/{matchId}/block:
+    post:
+      operationId: blockMatchParticipant
+      summary: Bloquer l'autre participant
+      description: Invalide tous les matches du binome, termine les accords et revoque les consentements.
+      tags: [Matches]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - $ref: '#/components/parameters/MatchId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200': { $ref: '#/components/responses/Match' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/ServerError' }
+    delete:
+      operationId: unblockMatchParticipant
+      summary: Debloquer l'autre participant
+      description: Supprime uniquement le blocage pose par le compte authentifie et relance le matching.
+      tags: [Matches]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - $ref: '#/components/parameters/MatchId'
+      responses:
+        '200': { $ref: '#/components/responses/Match' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/ServerError' }
+  /matches/{matchId}/reports:
+    post:
+      operationId: reportMatchParticipant
+      summary: Signaler l'autre participant
+      description: Un seul signalement par auteur, participant cible et correspondance.
+      tags: [Matches]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - $ref: '#/components/parameters/MatchId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { $ref: '#/components/schemas/ReportReason' }
+                details: { type: [string, 'null'], maxLength: 1000 }
+      responses:
+        '201':
+          description: Signalement cree en attente de moderation.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserReportResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/ReportConflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/ServerError' }
+  /admin/statistics:
+    get:
+      operationId: getPlatformStatistics
+      summary: Statistiques agregees de la plateforme
+      description: >-
+        Reserve aux administrateurs actifs. Comptes utilisateurs ordinaires, demandes actives
+        (publiees et non expirees), correspondances par statut, accords mutuels, signalements et
+        wilayas couvertes. Uniquement des nombres, jamais un compte ni une demande.
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+      responses:
+        '200':
+          description: Statistiques calculees a la demande.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/PlatformStatistics' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/ServerError' }
+  /admin/audit-logs:
+    get:
+      operationId: listAuditLogs
+      summary: Consulter le journal d'audit
+      description: >-
+        Reserve aux administrateurs actifs. Decisions sensibles (suspension, reactivation,
+        decision de moderation), de la plus recente a la plus ancienne. Les entrees ne sont
+        jamais modifiees ; l'adresse IP de l'auteur n'est pas exposee.
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+        - name: action
+          in: query
+          schema: { $ref: '#/components/schemas/AuditAction' }
+        - name: target_public_id
+          in: query
+          description: Identifiant public du compte concerne.
+          schema: { type: string, pattern: '^[0-9A-HJKMNP-TV-Za-hjkmnp-tv-z]{26}$' }
+      responses:
+        '200':
+          description: Entrees paginees.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuditLogCollection' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/ServerError' }
+  /admin/reports:
+    get:
+      operationId: listUserReports
+      summary: Lister la file de moderation
+      description: Reserve aux moderateurs et administrateurs actifs.
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+        - name: status
+          in: query
+          schema: { $ref: '#/components/schemas/ReportStatus' }
+      responses:
+        '200':
+          description: Signalements pagines.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserReportCollection' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/ServerError' }
+  /admin/reports/{reportId}:
+    patch:
+      operationId: resolveUserReport
+      summary: Prendre une decision de moderation
+      description: Un signalement deja traite ne peut pas recevoir une seconde decision.
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - name: reportId
+          in: path
+          required: true
+          schema: { type: string, pattern: '^[0-9A-HJKMNP-TV-Za-hjkmnp-tv-z]{26}$' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status, resolution_note]
+              properties:
+                status: { type: string, enum: [resolved, dismissed] }
+                resolution_note: { type: string, maxLength: 1000 }
+      responses:
+        '200':
+          description: Decision enregistree et auditee.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserReportResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/ReportConflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/ServerError' }
+  /admin/users:
+    get:
+      operationId: listAdminUsers
+      summary: Rechercher les comptes utilisateurs ordinaires
+      description: >-
+        Liste paginee reservee aux administrateurs actifs avec l'ability `access-api`. Seuls les
+        comptes de role `user` sont visibles. La recherche facultative utilise un `public_id` exact ;
+        les noms, contacts, roles privilegies et tris choisis par le client ne sont pas exposes.
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+        - name: public_id
+          in: query
+          required: false
+          description: ULID public exact d'un compte ordinaire.
+          schema:
+            type: string
+            pattern: '^[0-9A-HJKMNP-TV-Za-hjkmnp-tv-z]{26}$'
+      responses:
+        '200':
+          description: Comptes ordinaires tries du plus recent au plus ancien.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUserCollection'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /admin/users/{userPublicId}/suspension:
+    post:
+      operationId: suspendUser
+      summary: Suspendre un compte utilisateur
+      description: >-
+        Suspend un compte de role `user`, revoque immediatement ses jetons, sessions et codes non
+        utilises, puis enregistre le motif et l'administrateur dans le journal d'audit. Reserve a un
+        compte `administrator` actif avec l'ability `access-api`. Les comptes `moderator` et
+        `administrator` ne peuvent pas etre cibles par ce flux. Accepte `Idempotency-Key` pour
+        rejouer une requete reussie sans creer un second audit.
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - name: userPublicId
+          in: path
+          required: true
+          description: ULID public du compte cible ; l'identifiant numerique interne n'est jamais accepte.
+          schema:
+            type: string
+            pattern: '^[0-9A-HJKMNP-TV-Za-hjkmnp-tv-z]{26}$'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserSuspensionRequest'
+      responses:
+        '200':
+          description: Compte suspendu et decision auditee.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserSuspensionResponse'
+        '400':
+          description: "`Idempotency-Key` mal formee."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Une requete avec la meme `Idempotency-Key` est deja en cours de traitement.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Motif invalide ou `Idempotency-Key` reutilisee avec un autre contenu.
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: '#/components/schemas/ValidationError'
+                  - $ref: '#/components/schemas/Error'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /admin/users/{userPublicId}/reinstatement:
+    post:
+      operationId: reinstateUser
+      summary: Reactiver un compte utilisateur suspendu
+      description: >-
+        Leve la suspension d'un compte de role `user` et enregistre le motif et l'administrateur dans
+        le journal d'audit. Le compte redevient `active` s'il a au moins un contact verifie, sinon
+        `pending_verification`. Aucun jeton ni aucune session revoques par la suspension ne sont
+        restaures. Reserve a un compte `administrator` actif avec l'ability `access-api` ; les
+        comptes `moderator` et `administrator` ne peuvent pas etre cibles. Un compte qui n'est pas
+        suspendu renvoie `409 account_not_suspended` sans nouvel audit. Accepte `Idempotency-Key`.
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - name: userPublicId
+          in: path
+          required: true
+          description: ULID public du compte cible ; l'identifiant numerique interne n'est jamais accepte.
+          schema:
+            type: string
+            pattern: '^[0-9A-HJKMNP-TV-Za-hjkmnp-tv-z]{26}$'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserReinstatementRequest'
+      responses:
+        '200':
+          description: Suspension levee et decision auditee.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserReinstatementResponse'
+        '400':
+          description: "`Idempotency-Key` mal formee."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: >-
+            Le compte n'est pas suspendu (`account_not_suspended`), ou une requete avec la meme
+            `Idempotency-Key` est deja en cours de traitement.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Motif invalide ou `Idempotency-Key` reutilisee avec un autre contenu.
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: '#/components/schemas/ValidationError'
+                  - $ref: '#/components/schemas/Error'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/ServerError'
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Laravel Sanctum personal access token (prefixe bdl_)
+      description: >-
+        Jeton personnel Sanctum envoye dans `Authorization: Bearer <jeton>`. Un jeton absent,
+        invalide ou expire donne une reponse `401`.
+  parameters:
+    AcceptLanguage:
+      name: Accept-Language
+      in: header
+      required: false
+      description: >-
+        Langue des messages. Valeurs prises en charge : `fr` et `ar`. Toute autre valeur est
+        ignoree et la langue par defaut (`fr`) s'applique. La langue retenue est rappelee dans
+        l'en-tete de reponse `Content-Language`.
+      schema:
+        type: string
+        examples:
+          - fr
+          - ar
+          - fr-FR,fr;q=0.9,ar;q=0.5
+    Page:
+      name: page
+      in: query
+      required: false
+      description: Numero de la page, a partir de 1.
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    PerPage:
+      name: per_page
+      in: query
+      required: false
+      description: Nombre d'elements par page.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    ProfessionFilter:
+      name: profession
+      in: query
+      required: false
+      description: Code de la profession. Un code inconnu renvoie une liste vide.
+      schema:
+        type: string
+        maxLength: 64
+    MobilityRequestId:
+      name: mobilityRequestId
+      in: path
+      required: true
+      description: ULID public de la demande (insensible a la casse). Une demande d'un autre compte renvoie 404.
+      schema:
+        type: string
+        pattern: '^[0-9A-HJKMNP-TV-Za-hjkmnp-tv-z]{26}$'
+    MatchId:
+      name: matchId
+      in: path
+      required: true
+      description: ULID public de la correspondance. Une correspondance d'un autre compte renvoie 404.
+      schema:
+        type: string
+        pattern: '^[0-9A-HJKMNP-TV-Za-hjkmnp-tv-z]{26}$'
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: >-
+        Cle choisie par le client (8 a 128 caracteres parmi `A-Z a-z 0-9 _ -`) qui rend un `POST`
+        rejouable sans double effet, sur les routes qui l'indiquent. Une reponse reussie est
+        rejouee pendant 24 h avec l'en-tete `Idempotent-Replayed: true`. La meme cle avec un autre
+        contenu donne `422` (`idempotency_key_reused`) ; une requete identique encore en cours
+        donne `409` (`idempotency_request_in_progress`).
+      schema:
+        type: string
+        minLength: 8
+        maxLength: 128
+        pattern: '^[A-Za-z0-9_-]+$'
+  headers:
+    XRequestId:
+      description: Identifiant de correlation genere par le serveur.
+      schema:
+        type: string
+        format: uuid
+    RetryAfter:
+      description: Nombre de secondes a attendre avant de reessayer.
+      schema:
+        type: integer
+        minimum: 0
+    XRateLimitLimit:
+      description: Limite de requetes pour la fenetre courante.
+      schema:
+        type: integer
+    XRateLimitRemaining:
+      description: Requetes restantes pour la fenetre courante.
+      schema:
+        type: integer
+    ContentLanguage:
+      description: Langue retenue pour les messages de la reponse (`fr` ou `ar`).
+      schema:
+        type: string
+        enum:
+          - fr
+          - ar
+  responses:
+    ReferenceList:
+      description: Entrees actives du referentiel, triees par nom dans la langue demandee.
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/XRequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ReferenceListResponse'
+    ProfessionalProfile:
+      description: Profil professionnel du compte, references par code.
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/XRequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProfessionalProfileResponse'
+    MobilityRequest:
+      description: Une demande de mobilite du compte.
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/XRequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/MobilityRequestResponse'
+    Match:
+      description: Correspondance mise a jour, presentee du point de vue du participant authentifie.
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/XRequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/MatchResponse'
+    MatchConflict:
+      description: Operation impossible dans l'etat actuel (`invalid_match_transition`).
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/XRequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            message: This operation is not allowed in the current status of the match.
+            code: invalid_match_transition
+            request_id: 0b5b7f1e-6f38-4e0c-9a0c-3f3c3f5e2a11
+    ContactNotAuthorized:
+      description: Le double consentement n'est pas actif, ou l'accord n'est plus en cours.
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/XRequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            message: Contact details are only shared when both participants agree to it.
+            code: contact_not_authorized
+            request_id: 0b5b7f1e-6f38-4e0c-9a0c-3f3c3f5e2a11
+    ReportConflict:
+      description: Signalement deja cree ou decision de moderation deja enregistree.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    RequestConflict:
+      description: >-
+        Operation impossible dans l'etat actuel (`invalid_request_transition`) ou publication
+        impossible (`request_not_publishable`, raisons dans `errors`).
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/XRequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            message: La demande ne peut pas etre publiee en l'etat.
+            code: request_not_publishable
+            errors:
+              status:
+                - Vous avez deja une demande active. Mettez-la en pause ou cloturez-la d'abord.
+            request_id: 0b5b7f1e-6f38-4e0c-9a0c-3f3c3f5e2a11
+    Unauthorized:
+      description: Non authentifie (jeton absent, invalide ou expire).
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/XRequestId'
+        WWW-Authenticate:
+          description: Schema d'authentification attendu.
+          schema:
+            type: string
+            const: Bearer
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            message: Unauthenticated.
+            code: unauthenticated
+            request_id: 0b5b7f1e-6f38-4e0c-9a0c-3f3c3f5e2a11
+    Forbidden:
+      description: Authentifie, mais action non autorisee.
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/XRequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            message: This action is unauthorized.
+            code: forbidden
+            request_id: 0b5b7f1e-6f38-4e0c-9a0c-3f3c3f5e2a11
+    NotFound:
+      description: Ressource ou route introuvable (ou masquee a ce client).
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/XRequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            message: Resource not found.
+            code: not_found
+            request_id: 0b5b7f1e-6f38-4e0c-9a0c-3f3c3f5e2a11
+    MethodNotAllowed:
+      description: Methode HTTP non prise en charge par la route.
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/XRequestId'
+        Allow:
+          description: Methodes acceptees par la route.
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            message: Method not allowed.
+            code: method_not_allowed
+            request_id: 0b5b7f1e-6f38-4e0c-9a0c-3f3c3f5e2a11
+    ValidationError:
+      description: Donnees invalides. `errors` liste les messages par champ.
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/XRequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationError'
+          example:
+            message: The given data was invalid.
+            code: validation_failed
+            errors:
+              name:
+                - The name field is required.
+            request_id: 0b5b7f1e-6f38-4e0c-9a0c-3f3c3f5e2a11
+    TooManyRequests:
+      description: Limite de debit depassee. Reessayer apres le delai indique par `Retry-After`.
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/XRequestId'
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+        X-RateLimit-Limit:
+          $ref: '#/components/headers/XRateLimitLimit'
+        X-RateLimit-Remaining:
+          $ref: '#/components/headers/XRateLimitRemaining'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            message: Too many requests.
+            code: too_many_requests
+            request_id: 0b5b7f1e-6f38-4e0c-9a0c-3f3c3f5e2a11
+    ServerError:
+      description: >-
+        Erreur interne. Le corps ne contient jamais de detail technique (pas de trace, de requete
+        SQL ni de donnee personnelle) ; communiquer `request_id` au support.
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/XRequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            message: Server error.
+            code: server_error
+            request_id: 0b5b7f1e-6f38-4e0c-9a0c-3f3c3f5e2a11
+    AcceptedMessage:
+      description: >-
+        Requete acceptee. Reponse volontairement generique : le corps ne revele pas si le contact
+        appartient a un compte existant (anti-enumeration).
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/XRequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/AcceptedMessageResponse'
+          example:
+            data:
+              message: If the information provided is valid, a verification code has been sent.
+    InvalidCredentials:
+      description: >-
+        Identifiant inconnu, contact non verifie ou mot de passe errone. Tous les cas renvoient
+        exactement la meme reponse (anti-enumeration).
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/XRequestId'
+        WWW-Authenticate:
+          description: Schema d'authentification attendu.
+          schema:
+            type: string
+            const: Bearer
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            message: These credentials do not match our records.
+            code: invalid_credentials
+            request_id: 0b5b7f1e-6f38-4e0c-9a0c-3f3c3f5e2a11
+    AccountSuspended:
+      description: Identifiants corrects, mais le compte est suspendu.
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/XRequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            message: This account is suspended.
+            code: account_suspended
+            request_id: 0b5b7f1e-6f38-4e0c-9a0c-3f3c3f5e2a11
+    InvalidVerificationCode:
+      description: >-
+        Code invalide : inconnu, faux, expire, deja utilise ou verrouille apres trop de tentatives.
+        Tous ces cas renvoient exactement la meme reponse (anti-enumeration).
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/XRequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            message: The verification code is invalid or has expired.
+            code: invalid_verification_code
+            request_id: 0b5b7f1e-6f38-4e0c-9a0c-3f3c3f5e2a11
+    ValidationOrCodeError:
+      description: >-
+        Soit les champs sont mal formes (`validation_failed`, avec `errors`), soit le code est
+        invalide (`invalid_verification_code`).
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/XRequestId'
+      content:
+        application/json:
+          schema:
+            anyOf:
+              - $ref: '#/components/schemas/ValidationError'
+              - $ref: '#/components/schemas/Error'
+          examples:
+            malformed_input:
+              summary: Champs mal formes
+              value:
+                message: The given data was invalid.
+                code: validation_failed
+                errors:
+                  code:
+                    - The code field format is invalid.
+                request_id: 0b5b7f1e-6f38-4e0c-9a0c-3f3c3f5e2a11
+            invalid_code:
+              summary: Code invalide, expire, deja utilise ou verrouille
+              value:
+                message: The verification code is invalid or has expired.
+                code: invalid_verification_code
+                request_id: 0b5b7f1e-6f38-4e0c-9a0c-3f3c3f5e2a11
   schemas:
+    ErrorCode:
+      type: string
+      description: >-
+        Identifiant stable de l'erreur, a utiliser cote client a la place du message. Les codes
+        `idempotency_*` ne concernent que les routes qui acceptent `Idempotency-Key`.
+      enum:
+        - bad_request
+        - unauthenticated
+        - forbidden
+        - not_found
+        - method_not_allowed
+        - conflict
+        - csrf_token_mismatch
+        - validation_failed
+        - too_many_requests
+        - server_error
+        - service_unavailable
+        - http_error
+        - idempotency_key_invalid
+        - idempotency_key_reused
+        - idempotency_request_in_progress
+        - invalid_credentials
+        - account_suspended
+        - invalid_verification_code
+        - account_not_suspended
+        - invalid_request_transition
+        - request_not_publishable
+        - invalid_match_transition
+        - contact_not_authorized
+        - interaction_blocked
+        - report_already_exists
+        - invalid_report_transition
+    Error:
+      type: object
+      required:
+        - message
+        - code
+        - request_id
+      properties:
+        message:
+          type: string
+          description: Message lisible, traduit selon `Accept-Language`. Ne pas l'interpreter par programme.
+        code:
+          $ref: '#/components/schemas/ErrorCode'
+        request_id:
+          type: string
+          format: uuid
+          description: Identique a l'en-tete `X-Request-ID`.
+    ValidationError:
+      allOf:
+        - $ref: '#/components/schemas/Error'
+        - type: object
+          required:
+            - errors
+          properties:
+            code:
+              const: validation_failed
+            errors:
+              type: object
+              description: Messages de validation, par nom de champ.
+              additionalProperties:
+                type: array
+                items:
+                  type: string
+    PaginationMeta:
+      type: object
+      required:
+        - current_page
+        - per_page
+        - total
+        - last_page
+      properties:
+        current_page:
+          type: integer
+          minimum: 1
+        per_page:
+          type: integer
+          minimum: 1
+          maximum: 100
+        total:
+          type: integer
+          minimum: 0
+        last_page:
+          type: integer
+          minimum: 1
+        from:
+          type:
+            - integer
+            - 'null'
+        to:
+          type:
+            - integer
+            - 'null'
+    PaginationLinks:
+      type: object
+      required:
+        - first
+        - last
+        - prev
+        - next
+      properties:
+        first:
+          type:
+            - string
+            - 'null'
+          format: uri
+        last:
+          type:
+            - string
+            - 'null'
+          format: uri
+        prev:
+          type:
+            - string
+            - 'null'
+          format: uri
+        next:
+          type:
+            - string
+            - 'null'
+          format: uri
+    Pagination:
+      type: object
+      description: >-
+        Enveloppe commune des listes paginees. Chaque route decrit le schema de `data`.
+        Modele : `allOf` avec `Pagination` puis un objet qui precise `data.items`.
+      required:
+        - data
+        - meta
+        - links
+      properties:
+        data:
+          type: array
+          items: {}
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+        links:
+          $ref: '#/components/schemas/PaginationLinks'
     HealthResponse:
       type: object
       required:
@@ -65,3 +2321,965 @@ components:
             timestamp:
               type: string
               format: date-time
+    AcceptedMessageResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          type: object
+          required:
+            - message
+          properties:
+            message:
+              type: string
+              description: Message generique, traduit selon `Accept-Language`. Ne pas l'interpreter par programme.
+    RegisterRequest:
+      type: object
+      description: >-
+        `email` ou `phone` doit etre fourni (les deux sont acceptes). Le mot de passe suit la
+        politique de mot de passe (12 caracteres minimum ; controle de fuite de donnees en
+        production).
+      required:
+        - name
+        - password
+      properties:
+        name:
+          type: string
+          maxLength: 120
+        email:
+          type: string
+          format: email
+          maxLength: 255
+          nullable: true
+        phone:
+          type: string
+          maxLength: 32
+          nullable: true
+          description: Numero national ou international ; un numero sans indicatif recoit l'indicatif par defaut du serveur.
+        password:
+          type: string
+          minLength: 12
+          format: password
+        locale:
+          type: string
+          enum: [fr, ar]
+          nullable: true
+      example:
+        name: Aminetou
+        email: aminetou@example.com
+        password: correct-horse-battery-staple
+    LoginRequest:
+      type: object
+      required:
+        - identifier
+        - password
+      properties:
+        identifier:
+          type: string
+          maxLength: 255
+          description: Adresse courriel ou numero de telephone.
+        password:
+          type: string
+        device_name:
+          type: string
+          maxLength: 100
+          nullable: true
+          description: Nom donne au jeton (par defaut `api`), pour le reconnaitre plus tard.
+      example:
+        identifier: aminetou@example.com
+        password: correct-horse-battery-staple
+        device_name: mobile
+    ContactRequest:
+      type: object
+      required:
+        - contact
+      properties:
+        contact:
+          type: string
+          maxLength: 255
+          description: Adresse courriel ou numero de telephone.
+      example:
+        contact: aminetou@example.com
+    VerifyContactRequest:
+      type: object
+      required:
+        - contact
+        - code
+      properties:
+        contact:
+          type: string
+          maxLength: 255
+        code:
+          type: string
+          pattern: '^\d{4,9}$'
+      example:
+        contact: aminetou@example.com
+        code: '482915'
+    ResetPasswordRequest:
+      type: object
+      required:
+        - contact
+        - code
+        - password
+      properties:
+        contact:
+          type: string
+          maxLength: 255
+        code:
+          type: string
+          pattern: '^\d{4,9}$'
+        password:
+          type: string
+          minLength: 12
+          format: password
+      example:
+        contact: aminetou@example.com
+        code: '482915'
+        password: another-correct-horse-99
+    ChangePasswordRequest:
+      type: object
+      required:
+        - current_password
+        - password
+      properties:
+        current_password:
+          type: string
+          format: password
+        password:
+          type: string
+          minLength: 12
+          format: password
+          description: Doit etre different du mot de passe actuel.
+    UserSuspensionRequest:
+      type: object
+      required:
+        - reason
+      properties:
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 1000
+          description: Motif obligatoire conserve dans l'audit et jamais renvoye dans la reponse.
+      example:
+        reason: Signalements repetes confirmes par la moderation.
+    AdminUserSummary:
+      type: object
+      required:
+        - public_id
+        - status
+      properties:
+        public_id:
+          type: string
+          pattern: '^[0-9A-HJKMNP-TV-Za-hjkmnp-tv-z]{26}$'
+        status:
+          $ref: '#/components/schemas/UserStatus'
+      description: >-
+        Vue administrative minimale d'un compte ordinaire, sans identifiant interne, nom, role,
+        contact, langue, donnees de verification ni horodatage.
+    AdminUserCollection:
+      allOf:
+        - $ref: '#/components/schemas/Pagination'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/AdminUserSummary'
+    UserSuspensionResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          type: object
+          required:
+            - public_id
+            - status
+          properties:
+            public_id:
+              type: string
+              pattern: '^[0-9A-HJKMNP-TV-Za-hjkmnp-tv-z]{26}$'
+            status:
+              type: string
+              const: suspended
+          description: >-
+            Resultat minimal sans identifiant interne, role, contact, motif ni contenu du journal
+            d'audit.
+    UserReinstatementRequest:
+      type: object
+      required:
+        - reason
+      properties:
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 1000
+          description: Motif obligatoire conserve dans l'audit et jamais renvoye dans la reponse.
+      example:
+        reason: Recours accepte apres verification.
+    UserReinstatementResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          type: object
+          required:
+            - public_id
+            - status
+          properties:
+            public_id:
+              type: string
+              pattern: '^[0-9A-HJKMNP-TV-Za-hjkmnp-tv-z]{26}$'
+            status:
+              type: string
+              enum:
+                - active
+                - pending_verification
+          description: >-
+            Resultat minimal sans identifiant interne, role, contact, motif ni contenu du journal
+            d'audit.
+    ReferenceEntry:
+      type: object
+      required:
+        - code
+        - name_fr
+        - name_ar
+      properties:
+        code:
+          type: string
+          maxLength: 64
+          description: Identifiant stable de l'entree ; l'identifiant numerique interne n'est jamais expose.
+        name_fr:
+          type: string
+        name_ar:
+          type: string
+        sector_code:
+          type: string
+          description: Present pour les professions et les etablissements.
+        profession_code:
+          type: string
+          description: Present pour les specialites et les grades.
+        wilaya_code:
+          type: string
+          description: Present pour les moughataas et les etablissements.
+        moughataa_code:
+          type: string
+          description: Present pour les etablissements.
+        type:
+          type: string
+          description: Type d'etablissement (par exemple `high_school`), present pour les etablissements.
+    ReferenceListResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReferenceEntry'
+    EstablishmentCollection:
+      allOf:
+        - $ref: '#/components/schemas/Pagination'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/ReferenceEntry'
+    ProfessionalProfileRequest:
+      type: object
+      required:
+        - sector
+        - profession
+        - wilaya
+        - moughataa
+      properties:
+        sector:
+          type: string
+          maxLength: 64
+        profession:
+          type: string
+          maxLength: 64
+        specialty:
+          type: [string, 'null']
+          maxLength: 64
+        grade:
+          type: [string, 'null']
+          maxLength: 64
+        wilaya:
+          type: string
+          maxLength: 64
+        moughataa:
+          type: string
+          maxLength: 64
+        establishment:
+          type: [string, 'null']
+          maxLength: 64
+        professional_identifier:
+          type: [string, 'null']
+          maxLength: 64
+          description: Matricule facultatif, chiffre au repos et jamais montre aux autres utilisateurs.
+      example:
+        sector: education
+        profession: teacher
+        specialty: maths
+        grade: grade-a
+        wilaya: '06'
+        moughataa: '0606'
+        establishment: null
+        professional_identifier: null
+    ProfileReference:
+      type: object
+      required:
+        - code
+        - name_fr
+        - name_ar
+        - active
+      properties:
+        code:
+          type: string
+        name_fr:
+          type: string
+        name_ar:
+          type: string
+        active:
+          type: boolean
+          description: Faux si l'entree a ete desactivee depuis l'enregistrement du profil.
+    ProfessionalProfileResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          type: object
+          required:
+            - sector
+            - profession
+            - specialty
+            - grade
+            - wilaya
+            - moughataa
+            - establishment
+            - professional_identifier
+            - updated_at
+          properties:
+            sector:
+              $ref: '#/components/schemas/ProfileReference'
+            profession:
+              $ref: '#/components/schemas/ProfileReference'
+            specialty:
+              oneOf:
+                - $ref: '#/components/schemas/ProfileReference'
+                - type: 'null'
+            grade:
+              oneOf:
+                - $ref: '#/components/schemas/ProfileReference'
+                - type: 'null'
+            wilaya:
+              $ref: '#/components/schemas/ProfileReference'
+            moughataa:
+              $ref: '#/components/schemas/ProfileReference'
+            establishment:
+              oneOf:
+                - $ref: '#/components/schemas/ProfileReference'
+                - type: 'null'
+            professional_identifier:
+              type: [string, 'null']
+            updated_at:
+              type: string
+              format: date-time
+    MobilityRequestStatus:
+      type: string
+      enum: [draft, published, paused, matched, expired, closed]
+      description: >-
+        `matched` est positionne uniquement par le moteur de matching. La suppression est logique
+        et n'est pas un statut.
+    RequestCloseReason:
+      type: string
+      enum: [permutation_completed, no_longer_needed, other]
+    DestinationInput:
+      type: object
+      required: [wilaya]
+      additionalProperties: false
+      properties:
+        wilaya:
+          type: string
+          maxLength: 64
+        moughataa:
+          type: [string, 'null']
+          maxLength: 64
+          description: Facultatif ; sans moughataa, toute la wilaya convient.
+        establishment:
+          type: [string, 'null']
+          maxLength: 64
+          description: Facultatif ; exige une moughataa et doit s'y trouver (et dans le secteur du profil).
+    MobilityRequestInput:
+      type: object
+      required: [available_from, expires_at, destinations]
+      properties:
+        available_from:
+          type: string
+          format: date
+        expires_at:
+          type: string
+          format: date
+        destinations:
+          type: array
+          minItems: 1
+          maxItems: 5
+          items:
+            $ref: '#/components/schemas/DestinationInput'
+      example:
+        available_from: '2026-10-15'
+        expires_at: '2027-04-15'
+        destinations:
+          - wilaya: '04'
+            moughataa: '0401'
+          - wilaya: '05'
+            moughataa: null
+    MobilityRequestPatch:
+      type: object
+      minProperties: 1
+      properties:
+        available_from:
+          type: string
+          format: date
+        expires_at:
+          type: string
+          format: date
+        destinations:
+          type: array
+          minItems: 1
+          maxItems: 5
+          items:
+            $ref: '#/components/schemas/DestinationInput'
+    MobilityRequest:
+      type: object
+      required: [public_id, status, available_from, expires_at, destinations, published_at, closed_at, close_reason, allowed_actions, created_at, updated_at]
+      properties:
+        public_id:
+          type: string
+          pattern: '^[0-9A-HJKMNP-TV-Za-hjkmnp-tv-z]{26}$'
+        status:
+          $ref: '#/components/schemas/MobilityRequestStatus'
+        available_from:
+          type: string
+          format: date
+        expires_at:
+          type: string
+          format: date
+          description: Derniere date de validite.
+        destinations:
+          type: array
+          items:
+            type: object
+            required: [priority, wilaya, moughataa, establishment]
+            properties:
+              priority:
+                type: integer
+                minimum: 1
+              wilaya:
+                $ref: '#/components/schemas/ProfileReference'
+              moughataa:
+                oneOf:
+                  - $ref: '#/components/schemas/ProfileReference'
+                  - type: 'null'
+              establishment:
+                oneOf:
+                  - $ref: '#/components/schemas/ProfileReference'
+                  - type: 'null'
+        published_at:
+          type: [string, 'null']
+          format: date-time
+        closed_at:
+          type: [string, 'null']
+          format: date-time
+        close_reason:
+          oneOf:
+            - $ref: '#/components/schemas/RequestCloseReason'
+            - type: 'null'
+        allowed_actions:
+          type: array
+          description: Operations possibles maintenant ; le client ne reconstitue pas le cycle de vie.
+          items:
+            type: string
+            enum: [update, publish, pause, renew, close, delete]
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    MobilityRequestResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/MobilityRequest'
+    MobilityRequestCollection:
+      allOf:
+        - $ref: '#/components/schemas/Pagination'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/MobilityRequest'
+    MatchStatus:
+      type: string
+      enum: [suggested, invited, mutual, in_discussion, file_prepared, submitted, approved, rejected, declined, withdrawn, expired, invalidated]
+      description: >-
+        Le moteur ne positionne que `suggested` et `invalidated` ; les autres statuts dependent des
+        participants (invitations et consentements).
+    MatchReason:
+      type: object
+      required: [criterion, points, max_points, detail]
+      properties:
+        criterion:
+          type: string
+          enum: [destination, professional, establishment, availability, verified_profile, profile_completeness, recent_activity]
+        points:
+          type: integer
+          minimum: 0
+        max_points:
+          type: integer
+        detail:
+          type: string
+          description: Code court expliquant les points (par exemple `exact_both`), jamais une donnee personnelle.
+    Match:
+      type: object
+      required: [public_id, type, status, score, rules_version, invalidation_reason, my_request, counterpart, reasons, my_decision, invited_by_me, expires_at, outcome_reason, contact_sharing, blocked_by_me, interaction_blocked, allowed_actions, allowed_progress_statuses, created_at, updated_at]
+      properties:
+        public_id:
+          type: string
+          pattern: '^[0-9A-HJKMNP-TV-Za-hjkmnp-tv-z]{26}$'
+        type:
+          type: string
+          const: direct
+        status:
+          $ref: '#/components/schemas/MatchStatus'
+        score:
+          type: integer
+          minimum: 0
+          maximum: 100
+        rules_version:
+          type: string
+          description: Version des regles ayant produit le score (par exemple `v1-strict`).
+        invalidation_reason:
+          type: [string, 'null']
+          enum: [request_unavailable, sector, profession, grade, specialty, geography, availability, blocked, null]
+        my_request:
+          type: [string, 'null']
+          description: ULID public de ma demande concernee.
+        counterpart:
+          description: >-
+            L'autre demande, limitee aux donnees de compatibilite. Jamais de nom, contact,
+            etablissement, identifiant de compte ou de demande.
+          oneOf:
+            - type: 'null'
+            - type: object
+              required: [sector, profession, specialty, grade, wilaya, moughataa, available_from, expires_at]
+              properties:
+                sector:
+                  $ref: '#/components/schemas/ProfileReference'
+                profession:
+                  $ref: '#/components/schemas/ProfileReference'
+                specialty:
+                  oneOf:
+                    - $ref: '#/components/schemas/ProfileReference'
+                    - type: 'null'
+                grade:
+                  oneOf:
+                    - $ref: '#/components/schemas/ProfileReference'
+                    - type: 'null'
+                wilaya:
+                  $ref: '#/components/schemas/ProfileReference'
+                moughataa:
+                  $ref: '#/components/schemas/ProfileReference'
+                available_from:
+                  type: string
+                  format: date
+                expires_at:
+                  type: string
+                  format: date
+        reasons:
+          type: array
+          items:
+            $ref: '#/components/schemas/MatchReason'
+        my_decision:
+          type: [string, 'null']
+          enum: [accepted, declined, withdrawn, null]
+        invited_by_me:
+          type: boolean
+        expires_at:
+          type: [string, 'null']
+          format: date-time
+          description: Echeance d'une invitation en attente.
+        outcome_reason:
+          type: [string, 'null']
+          enum: [not_interested, situation_changed, other, null]
+        contact_sharing:
+          type: object
+          required: [my_consent, counterpart_consent, available]
+          properties:
+            my_consent:
+              type: boolean
+            counterpart_consent:
+              type: boolean
+            available:
+              type: boolean
+              description: Vrai uniquement pendant un accord et lorsque les deux participants consentent.
+        blocked_by_me:
+          type: boolean
+          description: Vrai lorsque le compte authentifie a bloque l'autre participant.
+        interaction_blocked:
+          type: boolean
+          description: Vrai lorsqu'un blocage existe dans l'un ou l'autre sens.
+        allowed_actions:
+          type: array
+          description: Operations actuellement permises pour ce participant.
+          items:
+            type: string
+            enum: [invite, accept, decline, withdraw, grant_contact_consent, revoke_contact_consent, view_contact, send_message, update_progress, block, unblock, report]
+        allowed_progress_statuses:
+          type: array
+          description: Etapes administratives atteignables immediatement, sans reconstruire la machine a etats cote client.
+          items:
+            type: string
+            enum: [in_discussion, file_prepared, submitted, approved, rejected]
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    MatchCollection:
+      allOf:
+        - $ref: '#/components/schemas/Pagination'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/Match'
+    MatchResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/Match'
+    ContactDetailsResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          required: [email, phone]
+          properties:
+            email:
+              type: [string, 'null']
+              format: email
+              description: Courriel verifie de l'autre participant, sinon null.
+            phone:
+              type: [string, 'null']
+              description: Telephone verifie de l'autre participant, sinon null.
+    MatchMessage:
+      type: object
+      required: [public_id, from_me, body, read_at, created_at]
+      properties:
+        public_id: { type: string, pattern: '^[0-9A-HJKMNP-TV-Za-hjkmnp-tv-z]{26}$' }
+        from_me: { type: boolean }
+        body: { type: string, maxLength: 2000 }
+        read_at: { type: [string, 'null'], format: date-time }
+        created_at: { type: [string, 'null'], format: date-time }
+    MatchMessageResponse:
+      type: object
+      required: [data]
+      properties:
+        data: { $ref: '#/components/schemas/MatchMessage' }
+    MatchMessageCollection:
+      allOf:
+        - $ref: '#/components/schemas/Pagination'
+        - type: object
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/MatchMessage' }
+    ReportReason:
+      type: string
+      enum: [harassment, spam, fraud, inappropriate_content, other]
+    ReportStatus:
+      type: string
+      enum: [pending, resolved, dismissed]
+    UserReport:
+      type: object
+      required: [public_id, match_public_id, reporter_public_id, reported_user_public_id, reason, details, status, moderator_public_id, resolution_note, reviewed_at, created_at]
+      properties:
+        public_id: { type: string, pattern: '^[0-9A-HJKMNP-TV-Za-hjkmnp-tv-z]{26}$' }
+        match_public_id: { type: string, pattern: '^[0-9A-HJKMNP-TV-Za-hjkmnp-tv-z]{26}$' }
+        reporter_public_id: { type: string, pattern: '^[0-9A-HJKMNP-TV-Za-hjkmnp-tv-z]{26}$' }
+        reported_user_public_id: { type: string, pattern: '^[0-9A-HJKMNP-TV-Za-hjkmnp-tv-z]{26}$' }
+        reason: { $ref: '#/components/schemas/ReportReason' }
+        details: { type: [string, 'null'], maxLength: 1000 }
+        status: { $ref: '#/components/schemas/ReportStatus' }
+        moderator_public_id: { type: [string, 'null'] }
+        resolution_note: { type: [string, 'null'], maxLength: 1000 }
+        reviewed_at: { type: [string, 'null'], format: date-time }
+        created_at: { type: [string, 'null'], format: date-time }
+    UserReportResponse:
+      type: object
+      required: [data]
+      properties:
+        data: { $ref: '#/components/schemas/UserReport' }
+    UserReportCollection:
+      allOf:
+        - $ref: '#/components/schemas/Pagination'
+        - type: object
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/UserReport' }
+    NotificationType:
+      type: string
+      enum: [match_suggested, invitation_received, invitation_declined, match_accepted, match_withdrawn, contact_consent_granted, message_received]
+      description: >-
+        Evenement signale. Les types `match_suggested`, `invitation_received`, `match_accepted`,
+        `match_withdrawn` et `contact_consent_granted` sont aussi envoyes par courriel quand le
+        compte l'a accepte et possede une adresse verifiee ; `message_received` et
+        `invitation_declined` ne le sont jamais.
+    UserNotification:
+      type: object
+      required: [id, type, match_public_id, read_at, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        type: { $ref: '#/components/schemas/NotificationType' }
+        match_public_id: { type: [string, 'null'], pattern: '^[0-9A-HJKMNP-TV-Za-hjkmnp-tv-z]{26}$' }
+        read_at: { type: [string, 'null'], format: date-time }
+        created_at: { type: [string, 'null'], format: date-time }
+    UserNotificationResponse:
+      type: object
+      required: [data]
+      properties:
+        data: { $ref: '#/components/schemas/UserNotification' }
+    UserNotificationCollection:
+      allOf:
+        - $ref: '#/components/schemas/Pagination'
+        - type: object
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/UserNotification' }
+            meta:
+              type: object
+              required: [unread_count]
+              properties:
+                unread_count: { type: integer, minimum: 0 }
+    AuditAction:
+      type: string
+      enum: [user_suspended, user_reinstated, report_resolved, report_dismissed]
+    AuditLogEntry:
+      type: object
+      required: [action, actor_public_id, target_user_public_id, reason, before, after, created_at]
+      properties:
+        action: { $ref: '#/components/schemas/AuditAction' }
+        actor_public_id: { type: string, pattern: '^[0-9A-HJKMNP-TV-Za-hjkmnp-tv-z]{26}$' }
+        target_user_public_id: { type: string, pattern: '^[0-9A-HJKMNP-TV-Za-hjkmnp-tv-z]{26}$' }
+        reason: { type: string }
+        before: { type: object, additionalProperties: true }
+        after: { type: object, additionalProperties: true }
+        created_at: { type: string, format: date-time }
+    AuditLogCollection:
+      allOf:
+        - $ref: '#/components/schemas/Pagination'
+        - type: object
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/AuditLogEntry' }
+    PlatformStatistics:
+      type: object
+      required: [generated_at, accounts, requests, matches, mutual_agreements, reports, coverage]
+      properties:
+        generated_at: { type: string, format: date-time }
+        accounts:
+          type: object
+          description: Comptes utilisateurs ordinaires (hors moderateurs et administrateurs).
+          required: [total, active, pending_verification, suspended]
+          properties:
+            total: { type: integer, minimum: 0 }
+            active: { type: integer, minimum: 0 }
+            pending_verification: { type: integer, minimum: 0 }
+            suspended: { type: integer, minimum: 0 }
+        requests:
+          type: object
+          required: [published, paused, matched, with_match, by_sector]
+          properties:
+            published: { type: integer, minimum: 0, description: Demandes publiees et non expirees. }
+            paused: { type: integer, minimum: 0 }
+            matched: { type: integer, minimum: 0 }
+            with_match:
+              type: integer
+              minimum: 0
+              description: Demandes actives ayant au moins une correspondance proposee ou une invitation.
+            by_sector:
+              type: array
+              items:
+                type: object
+                required: [code, count]
+                properties:
+                  code: { type: string }
+                  count: { type: integer, minimum: 0 }
+        matches:
+          type: object
+          description: Nombre de correspondances par statut (toutes les valeurs de `MatchStatus`).
+          additionalProperties: { type: integer, minimum: 0 }
+        mutual_agreements:
+          type: integer
+          minimum: 0
+          description: Accords mutuels en cours ou aboutis (approuves ou refuses par l'administration).
+        reports:
+          type: object
+          required: [pending, resolved, dismissed]
+          properties:
+            pending: { type: integer, minimum: 0 }
+            resolved: { type: integer, minimum: 0 }
+            dismissed: { type: integer, minimum: 0 }
+        coverage:
+          type: object
+          required: [origin_wilayas, destination_wilayas]
+          properties:
+            origin_wilayas: { type: integer, minimum: 0 }
+            destination_wilayas: { type: integer, minimum: 0 }
+    TokenAbility:
+      type: string
+      const: access-api
+      description: Ability emise pour un compte actif authentifie avec un contact verifie.
+    UserStatus:
+      type: string
+      enum:
+        - active
+        - pending_verification
+        - suspended
+    User:
+      type: object
+      description: >-
+        Representation publique d'un compte. L'identifiant interne et les contacts en clair ne
+        sont jamais exposes ; un contact n'apparait que masque.
+      required:
+        - public_id
+        - name
+        - status
+        - locale
+        - email_notifications
+        - email_verified
+        - phone_verified
+      properties:
+        public_id:
+          type: string
+          description: Identifiant public non predictible (ULID).
+        name:
+          type: string
+        status:
+          $ref: '#/components/schemas/UserStatus'
+        locale:
+          type: string
+          enum: [fr, ar]
+          description: Langue des courriels envoyes au compte.
+        email_notifications:
+          type: boolean
+          description: Copie par courriel des notifications importantes (voir `NotificationType`).
+        email_verified:
+          type: boolean
+        phone_verified:
+          type: boolean
+        email_masked:
+          type:
+            - string
+            - 'null'
+          description: Adresse courriel partiellement masquee (par exemple `a***@e***.org`), ou `null` si aucune.
+        phone_masked:
+          type:
+            - string
+            - 'null'
+          description: Numero de telephone partiellement masque (par exemple `+222*****11`), ou `null` si aucun.
+      example:
+        public_id: 01J8ZQK9R3S4T5V6W7X8Y9Z0AB
+        name: Aminetou
+        status: active
+        locale: fr
+        email_notifications: true
+        email_verified: true
+        phone_verified: false
+        email_masked: a***@e***.com
+        phone_masked: null
+    UserResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          $ref: '#/components/schemas/User'
+    AuthTokenResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          type: object
+          required:
+            - token
+            - token_type
+            - abilities
+            - verification_required
+            - user
+          properties:
+            token:
+              type: string
+              description: Jeton Sanctum en clair, a ne conserver que cote client (prefixe `bdl_` apres le `|`).
+              example: '1|bdl_ab12cd34ef56gh78ij90kl12mn34op56qr78st90'
+            token_type:
+              type: string
+              const: Bearer
+            abilities:
+              type: array
+              items:
+                $ref: '#/components/schemas/TokenAbility'
+            expires_at:
+              type:
+                - string
+                - 'null'
+              format: date-time
+            verification_required:
+              type: boolean
+              const: false
+              description: Toujours faux ; aucun jeton n'est emis avant la verification d'un contact.
+            user:
+              $ref: '#/components/schemas/User'
+    VerifiedResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          type: object
+          required:
+            - verified
+          properties:
+            verified:
+              type: boolean
+              const: true
+    ResetResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          type: object
+          required:
+            - reset
+          properties:
+            reset:
+              type: boolean
+              const: true

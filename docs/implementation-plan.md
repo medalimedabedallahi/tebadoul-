@@ -17,26 +17,26 @@
 - [x] Ajouter l'API `/api/v1` et un identifiant de requete.
 - [x] Ajouter Docker pour PHP, Nginx, PostgreSQL, Redis et Mailpit.
 - [x] Ajouter la CI et l'analyse statique.
-- [ ] Ajouter les scans de securite et de dependances.
+- [x] Ajouter les scans de securite et de dependances.
 - [x] Publier le premier contrat OpenAPI.
 
 ## Phase 2 - Domaines MVP
 
-1. Authentification et verification des contacts.
-2. Roles, permissions et administration securisee.
-3. Referentiels geographiques et professionnels.
-4. Profils Enseignement et Sante.
-5. Demandes de mobilite et machine a etats.
-6. Matching direct versionne et explicable.
-7. Invitations, consentements et coordonnees.
-8. Messagerie, blocage, signalement et moderation.
-9. Notifications, audit et statistiques minimales.
+- [x] Authentification et verification des contacts.
+- [x] Roles, permissions et administration securisee.
+- [x] Referentiels geographiques et professionnels.
+- [x] Profils Enseignement et Sante.
+- [x] Demandes de mobilite et machine a etats.
+- [x] Matching direct versionne et explicable.
+- [x] Invitations, consentements et coordonnees.
+- [x] Messagerie, blocage, signalement et moderation.
+- [x] Notifications, audit et statistiques minimales.
 
 ## Gates avant pilote
 
-- OpenAPI couvre tous les endpoints implementes.
-- Tous les acces interdits sont testes.
-- Aucune coordonnee n'est exposee avant consentement.
-- Les jobs sont idempotents et testes sous concurrence.
-- Le francais, l'arabe, le RTL et WCAG 2.2 AA sont verifies.
-- La restauration PostgreSQL et le rollback applicatif sont testes.
+- [x] OpenAPI couvre tous les endpoints implementes (`tests/Feature/Api/V1/OpenApiCoverageTest.php`).
+- [x] Tous les acces interdits sont testes (`tests/Feature/Api/V1/AccessControlTest.php`, `tests/Feature/WebAccessControlTest.php`).
+- [x] Aucune coordonnee n'est exposee avant consentement (`tests/Feature/ContactConfidentialityTest.php`).
+- [x] Les jobs sont idempotents et testes sous concurrence (`tests/Feature/Concurrency/ConcurrentJobsTest.php`, processus paralleles sur PostgreSQL).
+- [ ] Le francais, l'arabe, le RTL et WCAG 2.2 AA sont verifies. Fait : parite des traductions et pages d'erreur localisees testees (`TranslationParityTest`, `ErrorPagesTest`) ; audit axe-core WCAG 2.2 AA sans violation sur les 19 pages en francais et en arabe (visiteur, utilisateur, administrateur), navigation clavier avec focus visible, RTL et affichage mobile verifies dans un navigateur. Reste : un test manuel avec un lecteur d'ecran (NVDA, TalkBack) par une personne.
+- [ ] La restauration PostgreSQL et le rollback applicatif sont testes.

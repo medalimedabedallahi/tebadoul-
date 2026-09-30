@@ -16,11 +16,17 @@ Badal est une plateforme de mise en relation pour les permutations professionnel
 
 ```bash
 cp .env.example .env
+npm ci
+npm run build
 docker compose build
 docker compose run --rm app php artisan key:generate
 docker compose run --rm app php artisan migrate
 docker compose up -d
 ```
+
+Dans Docker, `vendor/` est dans le volume `badal-vendor` (et non monte depuis l'hote, ce qui ralentissait chaque page de plusieurs secondes sous Windows). Apres une modification de `composer.lock` : `docker compose exec app composer install`.
+
+Les assets frontend se construisent sur l'hote : l'image PHP de developpement contient Composer, mais pas Node.js.
 
 Application : `http://localhost:8098`
 
@@ -48,11 +54,11 @@ docker compose run --rm app vendor/bin/phpunit --configuration=phpunit.pgsql.xml
 ## Documentation
 
 - [Decisions produit et architecture](docs/decisions/0001-product-and-architecture.md)
-- [Couche metier partagee API/Livewire (propose)](docs/decisions/0002-shared-business-actions.md)
+- [Couche metier partagee API/Livewire (acceptee)](docs/decisions/0002-shared-business-actions.md)
 - [Plan d'implementation](docs/implementation-plan.md)
 - [Contrat OpenAPI](docs/openapi.yaml)
 - PRD source : `.prd_review/PRD_Badal_Laravel_API.pdf`
 
 ## Etat du projet
 
-Le socle est en cours de construction. Les regles de compatibilite Enseignement/Sante, la zone pilote et la politique de conservation doivent encore etre validees avant l'activation du matching.
+Le socle technique est termine. La phase 2 couvre maintenant l'authentification et la verification des contacts, l'administration securisee, les referentiels, les profils professionnels, les demandes de mobilite, le moteur de matching direct explicable, les invitations et le double consentement, la messagerie, le blocage et la moderation des signalements (API `/api/v1/matches`, pages `/mes-correspondances` et `/moderation/signalements`), ainsi que les notifications internes avec copie par courriel parametrable, le journal d'audit consultable et les statistiques agregees (API `/api/v1/notifications`, `/api/v1/me/preferences`, `/api/v1/admin/audit-logs` et `/api/v1/admin/statistics` ; pages `/notifications`, `/administration/journal-audit` et `/administration/statistiques`). Le matching reste desactive par defaut (`MATCHING_ENABLED=false`) tant que les regles de compatibilite Enseignement/Sante, la zone pilote et la politique de conservation ne sont pas validees. Tous les domaines MVP de la phase 2 sont en place ; la suite porte sur les gates avant pilote du plan d'implementation.

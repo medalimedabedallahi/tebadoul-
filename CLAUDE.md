@@ -1,3 +1,28 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Project
+
+Badal is a platform for professional job-swap matching (teachers, health workers) in Mauritania. Laravel 13 / PHP 8.5, Livewire 4 (web) plus a versioned REST API (`/api/v1`, Sanctum), PostgreSQL 17, Redis 8. Docs and ADRs are in French; UI supports French and Arabic (RTL). Current state and next phases: `README.md` and `docs/implementation-plan.md`.
+
+The agent guide below holds setup, Docker-based commands, CI gates, and the core architecture rules. It is the source of truth for commands: run PHP/Composer through `docker compose run --rm app ...`, and `npm` on the host.
+
+@AGENTS.md
+
+## Additional Architecture Notes
+
+- Read `docs/decisions/0001-product-and-architecture.md` and `0002-shared-business-actions.md` before adding a domain. Key product invariants: contact details are never exposed before explicit, audited, revocable consent; blocking overrides invitations, messaging and contact reveal; matching must stay disabled until compatibility rules are validated.
+- Authorization lives in policies called from the action itself, not only at the entry point. Multi-table actions open their own transaction and are idempotent when a job can replay them.
+- Tests: one feature test per action covers business rules (`tests/Feature/Actions`); API/Livewire tests only cover validation and presentation. Shared helpers live in `tests/Support` (e.g. `RecordingSmsGateway`, `InteractsWithContactCodes`). `RunsConcurrently` races a static closure across real PHP processes on committed data; those tests only run on PostgreSQL (skipped on in-memory SQLite). The pilot gates are enforced by route sweeps (`OpenApiCoverageTest`, `AccessControlTest`, `WebAccessControlTest`, `ContactConfidentialityTest`, `TranslationParityTest`): a new route or translation key is covered automatically, so keep the sweeps' route-name lists and payloads up to date.
+- API errors are rendered centrally by `App\Exceptions\ApiExceptionRenderer` (registered in `bootstrap/app.php`) using `App\Enums\ApiErrorCode`; throw domain exceptions rather than building error responses in controllers.
+- Named rate limiters are registered in `AppServiceProvider`, with the numbers defined once in `App\Support\RateLimiting\AuthRateLimits`. Livewire components reuse them via `App\Livewire\Concerns\AppliesNamedRateLimiter`. Sanctum token abilities come from `App\Enums\TokenAbility`.
+- External channels are behind contracts (`App\Contracts\SmsGateway`, `ContactCodeSender`) bound in `AppServiceProvider`; add new drivers there.
+- Domain logic shared by several actions lives in `app/Support/<Domain>`, not in a base action. For example, `Trust\BlockGuard::ensureInteractionAllowed()` enforces the blocking invariant and must be called by any new action that lets two users interact (invite, accept, message, share contact). `Matching\MatchPresenter` builds a match's `allowed_actions`.
+- Admin-sensitive actions (suspend, reinstate, resolve report) append to `AuditLog` using an `App\Enums\AuditAction` case. Contact grants, revocations and reveals go to `contact_events` instead.
+- Maintenance commands are closures in `routes/console.php`, which is also where they are scheduled: `auth:prune-pending-accounts`, `requests:expire`, `matches:expire-invitations`, `matching:recompute`, `references:import`.
+- `composer analyse` runs Larastan at level 6 on `app` and `routes`. Production runs on `compose.prod.yaml` with the scripts in `ops/` (deploy, rollback, backup and restore); see `ops/README.md` before touching deployment.
+
 <laravel-boost-guidelines>
 === foundation rules ===
 
@@ -105,6 +130,16 @@ This project has domain-specific skills available in `**/skills/**`. You MUST ac
 - Laravel can be deployed using [Laravel Cloud](https://cloud.laravel.com/), which is the fastest way to deploy and scale production Laravel applications.
 - Activate the `deploying-to-cloud` skill whenever deploying to Laravel Cloud, configuring Cloud environments or resources, using the Cloud CLI, or troubleshooting Cloud deployments.
 
+=== tests rules ===
+
+# Test Enforcement
+
+- Add or update tests for behavior and logic changes when a test provides meaningful regression coverage.
+- Pure copy, styling, and layout-only changes do not require new or updated tests.
+- When test coverage applies, run the affected tests and ensure they pass.
+- Test the changed behavior and its important failure modes, but do not add tests beyond them.
+- Read the `testing-best-practices` skill before writing tests.
+
 === laravel/core rules ===
 
 # Do Things the Laravel Way
@@ -134,6 +169,14 @@ This project has domain-specific skills available in `**/skills/**`. You MUST ac
 ## Vite Error
 
 - If you receive an "Illuminate\Foundation\ViteException: Unable to locate file in Vite manifest" error, you can run `npm run build` or ask the user to run `npm run dev` or `composer run dev`.
+
+=== livewire/core rules ===
+
+# Livewire
+
+- Livewire allows you to build dynamic, reactive interfaces in PHP without writing JavaScript.
+- You can use Alpine.js for client-side interactions instead of JavaScript frameworks.
+- Keep state server-side so the UI reflects it. Validate and authorize in actions as you would in HTTP requests.
 
 === pint/core rules ===
 
