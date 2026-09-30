@@ -39,4 +39,4 @@
 - [x] Aucune coordonnee n'est exposee avant consentement (`tests/Feature/ContactConfidentialityTest.php`).
 - [x] Les jobs sont idempotents et testes sous concurrence (`tests/Feature/Concurrency/ConcurrentJobsTest.php`, processus paralleles sur PostgreSQL).
 - [ ] Le francais, l'arabe, le RTL et WCAG 2.2 AA sont verifies. Fait : parite des traductions et pages d'erreur localisees testees (`TranslationParityTest`, `ErrorPagesTest`) ; audit axe-core WCAG 2.2 AA sans violation sur les 19 pages en francais et en arabe (visiteur, utilisateur, administrateur), navigation clavier avec focus visible, RTL et affichage mobile verifies dans un navigateur. Reste : un test manuel avec un lecteur d'ecran (NVDA, TalkBack) par une personne.
-- [ ] La restauration PostgreSQL et le rollback applicatif sont testes.
+- [ ] La restauration PostgreSQL et le rollback applicatif sont testes. Repetition complete reussie en local le 2026-09-30 (sauvegarde, restauration verifiee table par table, deploiement, retour arriere manuel et automatique ; voir `ops/README.md`, Journal des exercices). Reste : le meme exercice sur l'hote de production avec une vraie sauvegarde.

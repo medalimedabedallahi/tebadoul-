@@ -108,16 +108,46 @@ La duree de restauration est journalisee : c'est la mesure du RTO reel.
 
 Gate avant pilote : `verify-restore.sh` reussi sur une vraie sauvegarde de production et un exercice `rollback.sh` documente.
 
+## Journal des exercices
+
+### 2026-09-30 : repetition complete sur poste de developpement (pas encore de production)
+
+Sauvegarde et restauration (pile `compose.yaml`, PostgreSQL 17) :
+
+- `backup-postgres.sh` : dump de 112 Ko en 2 s, relu par `pg_restore --list`, SHA-256 ecrit.
+- `verify-restore.sh` : restauration dans une base ephemere en 2 s (8 s au total), 30 tables et 29 migrations, base supprimee.
+- Restauration conservee puis comparee a la source : memes nombres de lignes dans les 30 tables, memes 90 contraintes et
+  107 index (dont `users_contact_required_check`).
+- Refus verifies : fichier altere (somme de controle), cible = base active, `--confirm-db` inexact, base existante, base systeme.
+- `--overwrite-active` sur une copie jouant le role de base active : sauvegarde `pre-restore` prise d'abord, donnees
+  modifiees apres la sauvegarde bien revenues.
+
+Deploiement et retour arriere (`compose.prod.yaml` sous le projet `badal-drill`, images `sha-drill1..3` servies par un
+registre local, PostgreSQL jetable) :
+
+- `deploy.sh sha-drill1` (premier deploiement) : sauvegarde, 29 migrations en tache one-shot, bascule, `/up` = 200 en 40 s.
+- `deploy.sh sha-drill2` : bascule en 28 s ; `previous_tag` = `sha-drill1`.
+- `rollback.sh` sans argument : retour a `sha-drill1` en 18 s pour `app`, `worker` et `scheduler`, donnees intactes.
+- `deploy.sh sha-drill3` (image volontairement cassee) : migration en echec => arret avant bascule, l'ancienne version
+  continue de tourner. Puis, avec une image dont seule la reponse HTTP est cassee : controle de sante en echec, retour
+  automatique a `sha-drill1` 80 s apres la bascule (`HEALTH_TIMEOUT=45` ; compter jusqu'a ~2 min 30 avec la valeur par
+  defaut de 120 s), donnees intactes.
+
+Enseignement : un fichier de secret contenant un retour chariot Windows (`\r`) rend Redis `unhealthy` (le serveur et le
+controle de sante ne lisent pas le meme mot de passe). Creer les secrets sur le serveur Linux (commandes ci-dessus), jamais
+les copier depuis un poste Windows.
+
+Reste pour le gate : le meme exercice sur l'hote de production, avec une vraie sauvegarde de production.
+
 ## Points a connaitre
 
-- Redis cache separe : `config/database.php` doit lire `REDIS_CACHE_HOST` / `REDIS_CACHE_PASSWORD` pour que la connexion
-  `cache` utilise `redis-cache` ; sinon le cache passe par `redis-queue` (base 1).
+- Redis cache separe : `config/database.php` lit `REDIS_CACHE_HOST` / `REDIS_CACHE_PASSWORD` (connexion `cache`), que
+  `compose.prod.yaml` pointe vers `redis-cache`.
 - Store de limitation/idempotence (compteurs `throttle`, cles d'idempotence) : doit rester sur l'instance Redis
   `noeviction` (`redis-queue`), jamais sur `redis-cache` (`allkeys-lru`), sous peine d'evictions silencieuses.
-  `.env.production.example` fixe `CACHE_LIMITER_STORE=redis-persistent` et `REDIS_PERSISTENT_DB=2` ;
-  `compose.prod.yaml` pointe deja `REDIS_PERSISTENT_HOST` / `REDIS_PERSISTENT_PASSWORD_FILE` vers `redis-queue`.
-  **A ALIGNER AVEC LE BACKEND** : ces deux noms de variable sont une proposition de l'infra, le store Laravel
-  correspondant (`config/cache.php` / `config/database.php`, connexion `persistent`) n'est pas encore cree.
+  `.env.production.example` fixe `CACHE_LIMITER_STORE=redis-persistent` et `REDIS_PERSISTENT_DB=2` : le store
+  `redis-persistent` (`config/cache.php`) utilise la connexion `persistent` (`config/database.php`), que
+  `compose.prod.yaml` pointe vers `redis-queue` (`REDIS_PERSISTENT_HOST` / `REDIS_PERSISTENT_PASSWORD_FILE`).
 - IP client derriere le proxy : le conteneur `nginx` de production a une IP fixe sur le reseau interne
   (`BADAL_NGINX_IP`, `compose.prod.yaml` : `networks.badal.ipv4_address`). `TRUSTED_PROXIES` doit etre
   strictement egal a cette IP (pas tout `BADAL_NETWORK_SUBNET`, qui inclut la passerelle `.1` et les autres

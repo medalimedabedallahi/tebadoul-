@@ -4,8 +4,8 @@
 # - Pas de Mailpit. PostgreSQL est EXTERNE (base geree ou hote dedie) et joint en TLS (DB_SSLMODE=require) :
 #   aucun service postgres ici, donc aucun volume de donnees metier a risque dans ce fichier.
 # - Redis separe : `redis-queue` (jobs + sessions, persistant, noeviction) et `redis-cache` (cache, volatile, allkeys-lru).
-#   ATTENTION : config/database.php doit lire REDIS_CACHE_HOST / REDIS_CACHE_PASSWORD pour que la connexion `cache`
-#   utilise `redis-cache` ; tant que ce n'est pas fait, le cache passe par `redis-queue` (base 1).
+#   La connexion `cache` (config/database.php) lit REDIS_CACHE_HOST / REDIS_CACHE_PASSWORD, pointes ci-dessous vers
+#   `redis-cache`.
 #   Le store de limitation/idempotence (CACHE_LIMITER_STORE=redis-persistent) doit lui aussi rester sur l'instance
 #   noeviction (`redis-queue`, base REDIS_PERSISTENT_DB) : jamais sur `redis-cache`, qui evince sous pression memoire.
 # - Secrets : fichiers montes en Docker secrets (/run/secrets/*), lus par l'entrypoint via NOM_FILE. Voir ops/README.md.
