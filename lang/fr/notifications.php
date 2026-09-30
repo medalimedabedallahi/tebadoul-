@@ -1,0 +1,47 @@
+<?php
+
+return [
+    'title' => 'Notifications',
+    'description' => 'Les événements de vos correspondances : suggestions, invitations, réponses et messages.',
+    'heading' => 'Notifications',
+    'intro' => 'Chaque notification renvoie à la correspondance concernée. Aucune coordonnée ni aucun message n’y figure.',
+    'filter' => 'Afficher',
+    'filters' => [
+        'all' => 'Toutes',
+        'unread' => 'Non lues',
+    ],
+    'unread' => 'Non lue',
+    'unread_count' => '{0} Aucune notification non lue|{1} 1 notification non lue|[2,*] :count notifications non lues',
+    'nav_unread' => ':count non lues',
+    'open' => 'Voir la correspondance',
+    'mark_read' => 'Marquer comme lue',
+    'mark_all_read' => 'Tout marquer comme lu',
+    'all_marked' => 'Toutes les notifications sont marquées comme lues.',
+    'empty_title' => 'Aucune notification',
+    'empty_description' => 'Vous serez averti ici dès qu’une correspondance évolue.',
+    'types' => [
+        'match_suggested' => 'Une nouvelle correspondance compatible a été trouvée pour votre demande.',
+        'invitation_received' => 'Vous avez reçu une invitation sur une correspondance.',
+        'invitation_declined' => 'Votre invitation a été refusée.',
+        'match_accepted' => 'Votre invitation a été acceptée : l’accord mutuel est en cours.',
+        'match_withdrawn' => 'L’autre participant s’est retiré d’une correspondance.',
+        'contact_consent_granted' => 'L’autre participant accepte de partager ses coordonnées.',
+        'message_received' => 'Vous avez reçu un nouveau message.',
+    ],
+    'mail' => [
+        'subject' => 'Badal : :event',
+        'greeting' => 'Bonjour,',
+        'action' => 'Voir la correspondance',
+        'preferences' => 'Vous pouvez désactiver ces courriels depuis la page « Mon compte ».',
+        'salutation' => 'L’équipe Badal',
+    ],
+    'preferences' => [
+        'heading' => 'Préférences de notification',
+        'email_label' => 'Recevoir aussi les notifications importantes par courriel',
+        'email_help' => 'Uniquement à une adresse vérifiée. Les messages ne sont jamais envoyés par courriel.',
+        'email_unavailable' => 'Ajoutez et vérifiez une adresse courriel pour recevoir ces courriels.',
+        'locale_label' => 'Langue des courriels',
+        'submit' => 'Enregistrer les préférences',
+        'saved' => 'Vos préférences ont été enregistrées.',
+    ],
+];
