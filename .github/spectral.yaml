@@ -1,0 +1,10 @@
+# Regles Spectral pour docs/openapi.yaml (job `openapi` de ci.yml).
+# La CI echoue sur les erreurs ; les avertissements restent visibles dans le journal.
+extends:
+  - spectral:oas
+rules:
+  # Le contrat n'expose pas (encore) de contact ni de licence publics.
+  info-contact: off
+  info-license: off
+  # Composants partages (pagination, erreurs, cle d'idempotence) declares avant leur premier usage.
+  oas3-unused-component: off

@@ -166,13 +166,32 @@ return [
             'backoff_cap' => env('REDIS_BACKOFF_CAP', 1000),
         ],
 
+        // Dedicated instance in production (compose.prod.yaml: redis-cache, volatile with LRU eviction).
+        // Without REDIS_CACHE_* the cache shares the instance of `default` (development), on database 1.
         'cache' => [
-            'url' => env('REDIS_URL'),
-            'host' => env('REDIS_HOST', '127.0.0.1'),
-            'username' => env('REDIS_USERNAME'),
-            'password' => env('REDIS_PASSWORD'),
-            'port' => env('REDIS_PORT', '6379'),
+            'url' => env('REDIS_CACHE_URL', env('REDIS_URL')),
+            'host' => env('REDIS_CACHE_HOST', env('REDIS_HOST', '127.0.0.1')),
+            'username' => env('REDIS_CACHE_USERNAME', env('REDIS_USERNAME')),
+            'password' => env('REDIS_CACHE_PASSWORD', env('REDIS_PASSWORD')),
+            'port' => env('REDIS_CACHE_PORT', env('REDIS_PORT', '6379')),
             'database' => env('REDIS_CACHE_DB', '1'),
+            'max_retries' => env('REDIS_MAX_RETRIES', 3),
+            'backoff_algorithm' => env('REDIS_BACKOFF_ALGORITHM', 'decorrelated_jitter'),
+            'backoff_base' => env('REDIS_BACKOFF_BASE', 100),
+            'backoff_cap' => env('REDIS_BACKOFF_CAP', 1000),
+        ],
+
+        // Data that must never be evicted (rate-limiter counters, idempotency keys; see the
+        // `redis-persistent` cache store): same instance as `default`, which holds the queue and is
+        // configured with noeviction in production (compose.prod.yaml sets REDIS_PERSISTENT_* to
+        // redis-queue), on its own database. Without REDIS_PERSISTENT_* it shares `default`.
+        'persistent' => [
+            'url' => env('REDIS_PERSISTENT_URL', env('REDIS_URL')),
+            'host' => env('REDIS_PERSISTENT_HOST', env('REDIS_HOST', '127.0.0.1')),
+            'username' => env('REDIS_PERSISTENT_USERNAME', env('REDIS_USERNAME')),
+            'password' => env('REDIS_PERSISTENT_PASSWORD', env('REDIS_PASSWORD')),
+            'port' => env('REDIS_PERSISTENT_PORT', env('REDIS_PORT', '6379')),
+            'database' => env('REDIS_PERSISTENT_DB', '2'),
             'max_retries' => env('REDIS_MAX_RETRIES', 3),
             'backoff_algorithm' => env('REDIS_BACKOFF_ALGORITHM', 'decorrelated_jitter'),
             'backoff_base' => env('REDIS_BACKOFF_BASE', 100),

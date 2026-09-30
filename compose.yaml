@@ -1,88 +1,139 @@
+# Environnement de DEVELOPPEMENT (le code est monte en volume). Production : compose.prod.yaml.
+#
+# Les mots de passe viennent de .env (voir .env.example) : aucun mot de passe de repli ici,
+# `docker compose` refuse de demarrer si DB_PASSWORD ou REDIS_PASSWORD manque.
+
 name: badal
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+x-service-defaults: &service-defaults
+  init: true
+  security_opt:
+    - no-new-privileges:true
+  logging: *default-logging
+
+x-php-service: &php-service
+  <<: *service-defaults
+  build:
+    context: .
+    dockerfile: docker/php/Dockerfile
+    target: development
+  env_file:
+    - .env
+  volumes:
+    - ./:/var/www/html
+    # vendor/ (plus de 90 % des fichiers charges par requete) vit dans un volume Docker natif et non dans le
+    # bind mount : sous Docker Desktop (Windows/macOS), chaque acces a un fichier monte depuis l'hote est lent et
+    # opcache le revalide a chaque requete (revalidate_freq = 0), ce qui coutait plusieurs secondes par page.
+    # Rempli au premier demarrage par l'entrypoint (composer install). Apres un changement de composer.lock :
+    # `docker compose exec app composer install`. Le vendor/ de l'hote reste celui de l'IDE et des outils locaux.
+    - badal-vendor:/var/www/html/vendor
 
 services:
   nginx:
-    image: nginx:1.29-alpine
+    <<: *service-defaults
+    image: nginx:1.29-alpine@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de
     ports:
-      - "${APP_PORT:-8098}:80"
+      # 127.0.0.1 par defaut : pour exposer sur le reseau local, definir APP_BIND_ADDRESS=0.0.0.0 dans .env.
+      - "${APP_BIND_ADDRESS:-127.0.0.1}:${APP_PORT:-8098}:80"
     volumes:
-      - ./:/var/www/html:ro
+      # Seul public/ est visible de Nginx ; le code PHP reste dans le conteneur app.
+      - ./public:/var/www/html/public:ro
       - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./docker/nginx/security-headers.conf:/etc/nginx/snippets/security-headers.conf:ro
     depends_on:
       app:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1/nginx-health"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
     networks:
       - badal
 
   app:
-    build:
-      context: .
-      dockerfile: docker/php/Dockerfile
-      target: development
-    env_file:
-      - .env
-    volumes:
-      - ./:/var/www/html
+    <<: *php-service
+    # SIGQUIT = arret gracieux de PHP-FPM (les requetes en cours se terminent).
+    stop_signal: SIGQUIT
+    stop_grace_period: 30s
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "php", "artisan", "about", "--only=environment"]
+      # Leger : PHP-FPM accepte les connexions (ne demarre pas Laravel). La sonde applicative est GET /up via Nginx.
+      test: ["CMD", "php", "-r", "exit(@fsockopen('127.0.0.1', 9000) ? 0 : 1);"]
       interval: 15s
-      timeout: 20s
+      timeout: 5s
       retries: 5
-      start_period: 60s
+      start_period: 90s
+    restart: unless-stopped
     networks:
       - badal
 
   worker:
-    build:
-      context: .
-      dockerfile: docker/php/Dockerfile
-      target: development
-    command: php artisan queue:work --queue=critical,matching,notifications,default --sleep=1 --tries=3 --timeout=90
-    env_file:
-      - .env
-    volumes:
-      - ./:/var/www/html
+    <<: *php-service
+    # timeout (60) doit rester STRICTEMENT inferieur a retry_after de la connexion queue (config/queue.php : 120).
+    # max-time / max-jobs : le worker se recycle proprement (fuites memoire) et restart le relance.
+    command: php artisan queue:work --queue=critical,matching,notifications,default --sleep=1 --tries=3 --timeout=60 --max-time=3600 --max-jobs=1000
+    # Laisse finir le job en cours (timeout 60 s) avant SIGKILL.
+    stop_grace_period: 75s
     depends_on:
+      app:
+        condition: service_healthy
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "artisan queue:work"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     restart: unless-stopped
     networks:
       - badal
 
   scheduler:
-    build:
-      context: .
-      dockerfile: docker/php/Dockerfile
-      target: development
+    <<: *php-service
     command: php artisan schedule:work
-    env_file:
-      - .env
-    volumes:
-      - ./:/var/www/html
+    stop_grace_period: 30s
     depends_on:
+      app:
+        condition: service_healthy
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "artisan schedule:work"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     restart: unless-stopped
     networks:
       - badal
 
   postgres:
-    image: postgres:17-alpine
+    <<: *service-defaults
+    image: postgres:17-alpine@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24
     ports:
       - "127.0.0.1:${FORWARD_DB_PORT:-54329}:5432"
     environment:
       POSTGRES_DB: "${DB_DATABASE:-badal}"
       POSTGRES_USER: "${DB_USERNAME:-badal}"
-      POSTGRES_PASSWORD: "${DB_PASSWORD:-badal_local_password}"
+      POSTGRES_PASSWORD: "${DB_PASSWORD:?DB_PASSWORD doit etre defini dans .env}"
     volumes:
       - badal-postgres:/var/lib/postgresql/data
     healthcheck:
@@ -90,29 +141,45 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    restart: unless-stopped
     networks:
       - badal
 
+  # Developpement : une seule instance Redis (queue + cache + sessions). noeviction = aucune cle (job, session)
+  # n'est jamais eliminee en silence ; si la memoire est pleine, l'ecriture echoue bruyamment.
+  # En production, cache et queue sont separes (compose.prod.yaml).
   redis:
-    image: redis:8-alpine
-    command: redis-server --appendonly yes --requirepass "${REDIS_PASSWORD:-badal_local_password}"
+    <<: *service-defaults
+    image: redis:8-alpine@sha256:ef216d85ec44f4fdf7c0e6df2d1757a4734ed32fbb278cabd3181b5a27353b79
+    # Le mot de passe est ecrit dans un fichier de config temporaire : il n'apparait pas dans les arguments du processus.
+    command:
+      - sh
+      - -c
+      - printf 'requirepass %s\n' "$$REDIS_PASSWORD" > /tmp/redis-auth.conf && exec redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy noeviction --include /tmp/redis-auth.conf
+    environment:
+      REDIS_PASSWORD: "${REDIS_PASSWORD:?REDIS_PASSWORD doit etre defini dans .env}"
+      # redis-cli lit son mot de passe ici (pas de -a en argument).
+      REDISCLI_AUTH: "${REDIS_PASSWORD}"
     ports:
       - "127.0.0.1:${FORWARD_REDIS_PORT:-6389}:6379"
     volumes:
       - badal-redis:/data
     healthcheck:
-      test: ["CMD-SHELL", "redis-cli -a '${REDIS_PASSWORD:-badal_local_password}' ping | grep PONG"]
+      test: ["CMD-SHELL", "redis-cli ping | grep -q PONG"]
       interval: 5s
       timeout: 5s
       retries: 10
+    restart: unless-stopped
     networks:
       - badal
 
   mailpit:
-    image: axllent/mailpit:v1.27
+    <<: *service-defaults
+    image: axllent/mailpit:v1.27@sha256:e22dce5b36f93c77082e204a3942fb6b283b7896e057458400a4c88344c3df68
     ports:
       - "127.0.0.1:${FORWARD_MAILPIT_PORT:-8026}:8025"
       - "127.0.0.1:${FORWARD_MAIL_PORT:-1026}:1025"
+    restart: unless-stopped
     networks:
       - badal
 
@@ -123,3 +190,4 @@ networks:
 volumes:
   badal-postgres:
   badal-redis:
+  badal-vendor:

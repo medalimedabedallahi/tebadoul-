@@ -1,0 +1,108 @@
+name: Exercice de restauration PostgreSQL
+
+# Preuve continue (gate avant pilote, voir ops/README.md "Objectifs RPO / RTO") que la procedure de restauration
+# fonctionne : genere une sauvegarde (ops/backup-postgres.sh) sur un PostgreSQL ephemere et migre, puis la
+# restaure et la controle avec ops/verify-restore.sh. Aucun secret, aucune donnee de production : tout se passe
+# dans un conteneur jetable de la CI. Ne remplace pas l'exercice trimestriel sur une vraie sauvegarde de
+# production (ops/README.md), mais detecte immediatement une regression des scripts ops/ eux-memes.
+
+on:
+  schedule:
+    - cron: '17 3 1 * *' # mensuel : le 1er de chaque mois a 03:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: restore-drill
+  cancel-in-progress: false
+
+jobs:
+  verify-restore:
+    name: Sauvegarde puis restauration (verify-restore.sh)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    # Identifiants ephemeres du service PostgreSQL de la CI (conteneur jetable, non expose) : ce ne sont pas des secrets.
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: badal_restore_drill
+          POSTGRES_USER: badal
+          POSTGRES_PASSWORD: ci-ephemeral-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U badal -d badal_restore_drill"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # Lus par artisan (config/database.php) et par ops/lib.sh (PG_MODE=direct : binaires locaux, variables libpq
+      # standard). BACKUP_ALLOW_UNENCRYPTED=1 : repetition locale sans cle age/gpg (voir ops/backup-postgres.sh).
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_DATABASE: badal_restore_drill
+      DB_USERNAME: badal
+      DB_PASSWORD: ci-ephemeral-password
+      PG_MODE: direct
+      PGHOST: 127.0.0.1
+      PGPORT: 5432
+      PGUSER: badal
+      PGPASSWORD: ci-ephemeral-password
+      PGDATABASE: badal_restore_drill
+      BACKUP_DIR: backups
+      BACKUP_ALLOW_UNENCRYPTED: "1"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+        with:
+          php-version: '8.5'
+          extensions: mbstring, intl, pdo_pgsql
+          coverage: none
+
+      - name: Locate Composer cache
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Composer packages
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: composer-${{ runner.os }}-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-
+
+      - name: Install PHP dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Configure application
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      - name: Peupler le schema (migrations) sur le PostgreSQL ephemere
+        run: php artisan migrate --force --no-interaction
+
+      - name: Installer les outils client PostgreSQL (pg_dump, pg_restore, psql)
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends postgresql-client
+
+      - name: Rendre les scripts ops/ executables
+        run: chmod +x ops/*.sh
+
+      - name: Generer une sauvegarde (ops/backup-postgres.sh)
+        run: ops/backup-postgres.sh
+
+      - name: Exercice de restauration + controles (ops/verify-restore.sh)
+        run: ops/verify-restore.sh

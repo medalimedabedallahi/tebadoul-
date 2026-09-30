@@ -1,0 +1,221 @@
+# Environnement de PRODUCTION (fichier autonome, distinct de compose.yaml de developpement).
+#
+# - Images immuables taguees par SHA (BADAL_TAG), construites et publiees par la CI (.github/workflows/release.yml).
+# - Pas de Mailpit. PostgreSQL est EXTERNE (base geree ou hote dedie) et joint en TLS (DB_SSLMODE=require) :
+#   aucun service postgres ici, donc aucun volume de donnees metier a risque dans ce fichier.
+# - Redis separe : `redis-queue` (jobs + sessions, persistant, noeviction) et `redis-cache` (cache, volatile, allkeys-lru).
+#   ATTENTION : config/database.php doit lire REDIS_CACHE_HOST / REDIS_CACHE_PASSWORD pour que la connexion `cache`
+#   utilise `redis-cache` ; tant que ce n'est pas fait, le cache passe par `redis-queue` (base 1).
+#   Le store de limitation/idempotence (CACHE_LIMITER_STORE=redis-persistent) doit lui aussi rester sur l'instance
+#   noeviction (`redis-queue`, base REDIS_PERSISTENT_DB) : jamais sur `redis-cache`, qui evince sous pression memoire.
+# - Secrets : fichiers montes en Docker secrets (/run/secrets/*), lus par l'entrypoint via NOM_FILE. Voir ops/README.md.
+# - TLS : termine en frontal (reverse proxy / load balancer) ; Nginx n'est publie que sur 127.0.0.1 par defaut.
+# - Les migrations ne tournent JAMAIS au demarrage : service one-shot `migrate` (profil `tools`), lance par ops/deploy.sh.
+#
+# Validation locale :  docker compose --env-file .env.production.example -f compose.prod.yaml config -q
+# Ne jamais utiliser `down -v` ni supprimer les volumes badal-prod_*.
+
+name: badal-prod
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+x-service-defaults: &service-defaults
+  init: true
+  restart: unless-stopped
+  security_opt:
+    - no-new-privileges:true
+  logging: *default-logging
+
+x-php-service: &php-service
+  <<: *service-defaults
+  image: "${BADAL_IMAGE:?BADAL_IMAGE doit etre defini (ex. ghcr.io/org/badal-app)}:${BADAL_TAG:?BADAL_TAG doit etre defini (ex. sha-<commit>)}"
+  build:
+    context: .
+    dockerfile: docker/php/Dockerfile
+    target: production
+  env_file:
+    - ${BADAL_ENV_FILE:-.env.production}
+  environment:
+    APP_KEY_FILE: /run/secrets/app_key
+    DB_PASSWORD_FILE: /run/secrets/db_password
+    REDIS_HOST: redis-queue
+    REDIS_PASSWORD_FILE: /run/secrets/redis_queue_password
+    REDIS_CACHE_HOST: redis-cache
+    REDIS_CACHE_PASSWORD_FILE: /run/secrets/redis_cache_password
+    # Store de limitation/idempotence (CACHE_LIMITER_STORE) : memes identifiants que la connexion "queue" ci-dessus
+    # (meme instance Redis noeviction), seul l'index de base differe (REDIS_PERSISTENT_DB, .env.production.example).
+    # Pointe explicitement vers redis-queue pour ne pas dependre d'un repli implicite cote configuration Laravel.
+    REDIS_PERSISTENT_HOST: redis-queue
+    REDIS_PERSISTENT_PASSWORD_FILE: /run/secrets/redis_queue_password
+    MAIL_PASSWORD_FILE: /run/secrets/mail_password
+    AWS_SECRET_ACCESS_KEY_FILE: /run/secrets/aws_secret_access_key
+  secrets:
+    - app_key
+    - db_password
+    - redis_queue_password
+    - redis_cache_password
+    - mail_password
+    - aws_secret_access_key
+  cap_drop:
+    - ALL
+  networks:
+    - badal
+
+services:
+  nginx:
+    <<: *service-defaults
+    image: "${BADAL_NGINX_IMAGE:?BADAL_NGINX_IMAGE doit etre defini (ex. ghcr.io/org/badal-nginx)}:${BADAL_TAG:?BADAL_TAG doit etre defini}"
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+      target: nginx-production
+    ports:
+      # Le frontal TLS pointe vers cette adresse. Ne pas publier sur 0.0.0.0 sans pare-feu.
+      - "${APP_BIND_ADDRESS:-127.0.0.1}:${APP_PORT:-8080}:8080"
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    depends_on:
+      app:
+        condition: service_healthy
+    # IP fixe (et non l'attribution DHCP habituelle du bridge) : TRUSTED_PROXIES (.env.production.example) et
+    # docker/nginx/production.conf (set_real_ip_from) s'appuient dessus. Doit rester dans BADAL_NETWORK_SUBNET.
+    networks:
+      badal:
+        ipv4_address: "${BADAL_NGINX_IP:-172.29.20.10}"
+
+  app:
+    <<: *php-service
+    stop_signal: SIGQUIT
+    stop_grace_period: 30s
+    depends_on:
+      redis-queue:
+        condition: service_healthy
+      redis-cache:
+        condition: service_healthy
+
+  worker:
+    <<: *php-service
+    # timeout (60) < retry_after de la connexion queue (config/queue.php).
+    command: php artisan queue:work --queue=critical,matching,notifications,default --sleep=1 --tries=3 --timeout=60 --max-time=3600 --max-jobs=1000
+    stop_grace_period: 75s
+    depends_on:
+      app:
+        condition: service_healthy
+      redis-queue:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "artisan queue:work"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  scheduler:
+    <<: *php-service
+    # Une seule instance de scheduler par environnement.
+    command: php artisan schedule:work
+    stop_grace_period: 30s
+    depends_on:
+      app:
+        condition: service_healthy
+      redis-queue:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "artisan schedule:work"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  # Tache one-shot : docker compose --env-file ... -f compose.prod.yaml run --rm migrate
+  # Ne demarre pas avec `up`. Les migrations doivent etre compatibles avec l'ancienne ET la nouvelle version du code
+  # (expand/contract, voir ops/README.md).
+  migrate:
+    <<: *php-service
+    profiles:
+      - tools
+    restart: "no"
+    command: php artisan migrate --force --no-interaction
+    healthcheck:
+      disable: true
+
+  # Jobs + sessions : ne doit JAMAIS eliminer de cle -> noeviction, AOF active.
+  redis-queue:
+    <<: *service-defaults
+    image: redis:8-alpine@sha256:ef216d85ec44f4fdf7c0e6df2d1757a4734ed32fbb278cabd3181b5a27353b79
+    user: redis
+    # Mot de passe lu depuis le secret, ecrit dans un fichier de config temporaire (absent des arguments du processus).
+    command:
+      - sh
+      - -c
+      - printf 'requirepass %s\n' "$$(cat /run/secrets/redis_queue_password)" > /tmp/redis-auth.conf && exec redis-server --appendonly yes --maxmemory ${REDIS_QUEUE_MAXMEMORY:-512mb} --maxmemory-policy noeviction --include /tmp/redis-auth.conf
+    secrets:
+      - redis_queue_password
+    volumes:
+      - badal-redis-queue:/data
+    healthcheck:
+      test: ["CMD-SHELL", "REDISCLI_AUTH=\"$$(cat /run/secrets/redis_queue_password)\" redis-cli ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    cap_drop:
+      - ALL
+    networks:
+      - badal
+
+  # Cache : volatile (rien a sauvegarder), eviction LRU autorisee.
+  redis-cache:
+    <<: *service-defaults
+    image: redis:8-alpine@sha256:ef216d85ec44f4fdf7c0e6df2d1757a4734ed32fbb278cabd3181b5a27353b79
+    user: redis
+    command:
+      - sh
+      - -c
+      - printf 'requirepass %s\n' "$$(cat /run/secrets/redis_cache_password)" > /tmp/redis-auth.conf && exec redis-server --save "" --appendonly no --maxmemory ${REDIS_CACHE_MAXMEMORY:-256mb} --maxmemory-policy allkeys-lru --include /tmp/redis-auth.conf
+    secrets:
+      - redis_cache_password
+    healthcheck:
+      test: ["CMD-SHELL", "REDISCLI_AUTH=\"$$(cat /run/secrets/redis_cache_password)\" redis-cli ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    cap_drop:
+      - ALL
+    networks:
+      - badal
+
+networks:
+  badal:
+    driver: bridge
+    ipam:
+      config:
+        # Sous-reseau fixe : TRUSTED_PROXIES (.env.production) doit le couvrir pour que Laravel
+        # fasse confiance aux en-tetes X-Forwarded-* poses par le frontal via Nginx.
+        - subnet: "${BADAL_NETWORK_SUBNET:-172.29.20.0/24}"
+
+volumes:
+  badal-redis-queue:
+
+# Fichiers hors depot (dossier 0700, fichiers 0444 lisibles par l'utilisateur du conteneur). Valeurs en hexadecimal
+# ou base64 sans espaces (elles sont inserees dans une config Redis). Un fichier vide est accepte pour mail_password
+# et aws_secret_access_key si le service n'est pas utilise.
+secrets:
+  app_key:
+    file: "${BADAL_SECRETS_DIR:-/etc/badal/secrets}/app_key"
+  db_password:
+    file: "${BADAL_SECRETS_DIR:-/etc/badal/secrets}/db_password"
+  redis_queue_password:
+    file: "${BADAL_SECRETS_DIR:-/etc/badal/secrets}/redis_queue_password"
+  redis_cache_password:
+    file: "${BADAL_SECRETS_DIR:-/etc/badal/secrets}/redis_cache_password"
+  mail_password:
+    file: "${BADAL_SECRETS_DIR:-/etc/badal/secrets}/mail_password"
+  aws_secret_access_key:
+    file: "${BADAL_SECRETS_DIR:-/etc/badal/secrets}/aws_secret_access_key"

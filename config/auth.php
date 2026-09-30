@@ -33,13 +33,18 @@ return [
     | users are actually retrieved out of your database or other storage
     | system used by the application. Typically, Eloquent is utilized.
     |
-    | Supported: "session"
+    | Supported: "session", "sanctum"
     |
     */
 
     'guards' => [
         'web' => [
             'driver' => 'session',
+            'provider' => 'users',
+        ],
+
+        'sanctum' => [
+            'driver' => 'sanctum',
             'provider' => 'users',
         ],
     ],
@@ -113,5 +118,39 @@ return [
     */
 
     'password_timeout' => env('AUTH_PASSWORD_TIMEOUT', 10800),
+
+    /*
+    |--------------------------------------------------------------------------
+    | One-Time Codes (contact verification and password reset)
+    |--------------------------------------------------------------------------
+    |
+    | Numeric codes sent by email or SMS. Only a keyed hash of the code is stored.
+    |
+    | - code_length: number of digits (4 to 9).
+    | - ttl_minutes: minutes during which a code can be used.
+    | - max_attempts: wrong guesses after which a code is locked (a new code must be requested).
+    |
+    */
+
+    'verification' => [
+        'code_length' => (int) env('OTP_LENGTH', 6),
+        'ttl_minutes' => (int) env('OTP_TTL_MINUTES', 10),
+        'max_attempts' => (int) env('OTP_MAX_ATTEMPTS', 5),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Accounts Pending Verification
+    |--------------------------------------------------------------------------
+    |
+    | - ttl_days: days after which an account still pending verification, with
+    |   no verified contact, is deleted by the daily `auth:prune-pending-accounts`
+    |   command (its contacts become free for a new registration).
+    |
+    */
+
+    'pending_accounts' => [
+        'ttl_days' => (int) env('PENDING_ACCOUNT_TTL_DAYS', 7),
+    ],
 
 ];

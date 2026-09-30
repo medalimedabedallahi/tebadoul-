@@ -78,11 +78,37 @@ return [
     |
     */
 
-    'locale' => env('APP_LOCALE', 'en'),
+    'locale' => env('APP_LOCALE', 'fr'),
 
-    'fallback_locale' => env('APP_FALLBACK_LOCALE', 'en'),
+    'fallback_locale' => env('APP_FALLBACK_LOCALE', 'fr'),
 
-    'faker_locale' => env('APP_FAKER_LOCALE', 'en_US'),
+    'faker_locale' => env('APP_FAKER_LOCALE', 'fr_FR'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Supported Locales
+    |--------------------------------------------------------------------------
+    |
+    | Locales the SetLocale middleware may select for a request (French and
+    | Arabic). Any other value coming from the session, a cookie or the
+    | Accept-Language header is ignored in favor of "app.locale".
+    |
+    */
+
+    'supported_locales' => ['fr', 'ar'],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Default Phone Country Code
+    |--------------------------------------------------------------------------
+    |
+    | Country calling code (digits only, no "+") added to phone numbers typed
+    | in national format, so that they are stored in E.164 form. Mauritania
+    | (222) by default.
+    |
+    */
+
+    'default_phone_country_code' => env('APP_PHONE_COUNTRY_CODE', '222'),
 
     /*
     |--------------------------------------------------------------------------

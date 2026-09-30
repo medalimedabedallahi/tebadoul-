@@ -19,6 +19,22 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Rate Limiter and Idempotency Store
+    |--------------------------------------------------------------------------
+    |
+    | Store of the rate-limiter counters and of the idempotency keys
+    | (App\Http\Middleware\EnsureIdempotency). They must never be evicted: an
+    | evicted counter resets a limit, an evicted key runs a request twice. In
+    | production, CACHE_LIMITER_STORE=redis-persistent puts them on the Redis
+    | instance that holds the queue (noeviction). Empty or absent (development,
+    | tests): the default store above is used.
+    |
+    */
+
+    'limiter' => env('CACHE_LIMITER_STORE') ?: null,
+
+    /*
+    |--------------------------------------------------------------------------
     | Cache Stores
     |--------------------------------------------------------------------------
     |
@@ -82,6 +98,13 @@ return [
             'driver' => 'redis',
             'connection' => env('REDIS_CACHE_CONNECTION', 'cache'),
             'lock_connection' => env('REDIS_CACHE_LOCK_CONNECTION', 'default'),
+        ],
+
+        // Never evicted (Redis connection `persistent`, noeviction): rate limits and idempotency keys.
+        'redis-persistent' => [
+            'driver' => 'redis',
+            'connection' => 'persistent',
+            'lock_connection' => 'persistent',
         ],
 
         'dynamodb' => [

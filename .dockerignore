@@ -1,11 +1,52 @@
+# Contexte de build Docker : tout ce qui n'est pas exclu ici peut finir dans une image.
+# Regle : ne jamais laisser partir de secret, d'etat local ni d'outillage de developpement.
+
+# Gestion de version, CI et outils d'agents
 .git
 .github
+.claude
+.agents
+.codex
+.cursor
+.idea
+.vscode
+.mcp.json
 .prd_review
-.env
+
+# Secrets et environnements (seuls les exemples sont autorises)
+.env*
+!.env.example
+!.env.production.example
+auth.json
+**/*.pem
+**/*.key
+secrets
+
+# Dependances et artefacts locaux (reconstruits dans l'image)
+vendor
 node_modules
 public/build
-storage/logs/*
-storage/framework/cache/*
-storage/framework/sessions/*
-storage/framework/views/*
-vendor
+public/hot
+public/storage
+
+# Etat d'execution local (le Dockerfile recree les dossiers storage/ necessaires)
+bootstrap/cache/*.php
+storage
+database/*.sqlite
+database/*.sqlite-journal
+.phpunit.cache
+.phpunit.result.cache
+*.log
+
+# Sources inutiles a l'execution
+tests
+docs
+ops
+*.md
+phpunit*.xml
+phpstan.neon
+boost.json
+.editorconfig
+.gitattributes
+.gitignore
+compose*.yaml

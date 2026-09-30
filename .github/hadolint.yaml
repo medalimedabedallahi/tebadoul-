@@ -1,0 +1,9 @@
+# Configuration hadolint (docker/php/Dockerfile).
+failure-threshold: warning
+ignored:
+  # Les paquets apk ne sont pas epingles : l'image de base est epinglee par digest et Alpine ne conserve
+  # pas les anciennes versions de paquets ; Dependabot + Trivy couvrent la derive de securite.
+  - DL3018
+trustedRegistries:
+  - docker.io
+  - ghcr.io

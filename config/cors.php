@@ -20,7 +20,7 @@ return [
         'X-XSRF-TOKEN',
     ],
 
-    'exposed_headers' => ['Retry-After', 'X-Request-ID'],
+    'exposed_headers' => ['Content-Language', 'Idempotent-Replayed', 'Retry-After', 'X-Request-ID'],
 
     'max_age' => 600,
 
