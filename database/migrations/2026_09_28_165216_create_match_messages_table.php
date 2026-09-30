@@ -1,0 +1,35 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('match_messages', function (Blueprint $table) {
+            $table->id();
+            $table->ulid('public_id')->unique();
+            $table->foreignId('match_id')->constrained('matches')->cascadeOnDelete();
+            $table->foreignId('sender_id')->constrained('users')->restrictOnDelete();
+            $table->text('body');
+            $table->timestamp('read_at')->nullable();
+            $table->timestamps();
+
+            $table->index(['match_id', 'id']);
+            $table->index(['sender_id', 'created_at']);
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('match_messages');
+    }
+};

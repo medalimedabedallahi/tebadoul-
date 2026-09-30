@@ -1,0 +1,31 @@
+<?php
+
+return [
+    'title' => 'Modération des signalements',
+    'heading' => 'Signalements',
+    'intro' => 'Examinez les signalements sans exposer les coordonnées des participants. Chaque décision est auditée.',
+    'filter' => 'État des signalements',
+    'empty_title' => 'Aucun signalement',
+    'empty_description' => 'Aucun signalement ne correspond à ce filtre.',
+    'reporter' => 'Compte signalant',
+    'reported' => 'Compte signalé',
+    'match' => 'Correspondance',
+    'created_at' => 'Reçu le',
+    'details' => 'Précisions',
+    'resolve' => 'Confirmer le signalement',
+    'dismiss' => 'Classer sans suite',
+    'resolution' => 'Décision de modération',
+    'resolution_note' => 'Motif de la décision',
+    'confirm' => 'Enregistrer la décision',
+    'cancel' => 'Annuler',
+    'decision_recorded' => 'Décision de modération enregistrée et auditée.',
+    'status' => ['pending' => 'À examiner', 'resolved' => 'Confirmé', 'dismissed' => 'Classé', 'all' => 'Tous'],
+    'reasons' => [
+        'harassment' => 'Harcèlement ou menace',
+        'spam' => 'Messages indésirables',
+        'fraud' => 'Fraude ou fausse information',
+        'inappropriate_content' => 'Contenu inapproprié',
+        'other' => 'Autre motif',
+    ],
+    'errors' => ['already_reviewed' => 'Ce signalement a déjà été traité.'],
+];
