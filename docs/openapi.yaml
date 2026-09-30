@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Badal API
-  version: 0.11.0
+  version: 0.12.0
   description: |
     API REST versionnee de la plateforme Badal.
 
@@ -545,6 +545,37 @@ paths:
           $ref: '#/components/responses/TooManyRequests'
         '500':
           $ref: '#/components/responses/ServerError'
+  /me:
+    delete:
+      operationId: deleteAccount
+      summary: Supprimer son compte
+      description: >-
+        Supprime definitivement le compte apres verification du mot de passe : les contacts, le
+        profil, les demandes, les notifications et tous les jetons (y compris celui de la requete)
+        sont effaces, et le compte est anonymise (statut `deleted`). Les correspondances en cours
+        prennent fin ; les messages deja envoyes restent visibles par leur destinataire. Meme
+        limite de debit qu'un changement de mot de passe.
+      tags: [Auth]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [password]
+              properties:
+                password: { type: string, format: password, maxLength: 255 }
+      responses:
+        '204':
+          description: Compte supprime ; le jeton utilise n'est plus valide.
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/ServerError' }
   /me/profile:
     get:
       operationId: getProfessionalProfile
@@ -2339,10 +2370,13 @@ components:
       description: >-
         `email` ou `phone` doit etre fourni (les deux sont acceptes). Le mot de passe suit la
         politique de mot de passe (12 caracteres minimum ; controle de fuite de donnees en
-        production).
+        production). `accept_terms` doit valoir `true` : l'acceptation des conditions d'utilisation
+        (`/conditions-utilisation`) et de la politique de confidentialite (`/confidentialite`) est
+        enregistree avec sa date et la version des textes.
       required:
         - name
         - password
+        - accept_terms
       properties:
         name:
           type: string
@@ -2365,10 +2399,14 @@ components:
           type: string
           enum: [fr, ar]
           nullable: true
+        accept_terms:
+          type: boolean
+          const: true
       example:
         name: Aminetou
         email: aminetou@example.com
         password: correct-horse-battery-staple
+        accept_terms: true
     LoginRequest:
       type: object
       required:
@@ -3078,7 +3116,7 @@ components:
                 unread_count: { type: integer, minimum: 0 }
     AuditAction:
       type: string
-      enum: [user_suspended, user_reinstated, report_resolved, report_dismissed]
+      enum: [user_suspended, user_reinstated, report_resolved, report_dismissed, account_deleted]
     AuditLogEntry:
       type: object
       required: [action, actor_public_id, target_user_public_id, reason, before, after, created_at]
@@ -3106,12 +3144,13 @@ components:
         accounts:
           type: object
           description: Comptes utilisateurs ordinaires (hors moderateurs et administrateurs).
-          required: [total, active, pending_verification, suspended]
+          required: [total, active, pending_verification, suspended, deleted]
           properties:
-            total: { type: integer, minimum: 0 }
+            total: { type: integer, minimum: 0, description: Comptes non supprimes. }
             active: { type: integer, minimum: 0 }
             pending_verification: { type: integer, minimum: 0 }
             suspended: { type: integer, minimum: 0 }
+            deleted: { type: integer, minimum: 0, description: Comptes supprimes et anonymises, hors total. }
         requests:
           type: object
           required: [published, paused, matched, with_match, by_sector]
@@ -3162,6 +3201,7 @@ components:
         - active
         - pending_verification
         - suspended
+        - deleted
     User:
       type: object
       description: >-

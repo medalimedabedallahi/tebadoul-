@@ -12,6 +12,12 @@ enum UserStatus: string
     case Suspended = 'suspended';
 
     /**
+     * Deleted by its owner: anonymized (no contact, no name) and kept only for the audit trail, the
+     * reports and the other participants' conversations. Final: never reactivated.
+     */
+    case Deleted = 'deleted';
+
+    /**
      * Whether the account may sign in and use the platform.
      */
     public function canSignIn(): bool

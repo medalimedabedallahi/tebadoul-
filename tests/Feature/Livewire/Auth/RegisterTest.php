@@ -29,6 +29,7 @@ class RegisterTest extends TestCase
             ->set('email', 'aminetou@example.com')
             ->set('password', self::PASSWORD)
             ->set('password_confirmation', self::PASSWORD)
+            ->set('accept_terms', true)
             ->call('register')
             ->assertHasNoErrors()
             ->assertRedirect(route('verification.show'));
@@ -46,6 +47,7 @@ class RegisterTest extends TestCase
             ->set('phone', '41111111')
             ->set('password', self::PASSWORD)
             ->set('password_confirmation', self::PASSWORD)
+            ->set('accept_terms', true)
             ->call('register')
             ->assertHasNoErrors()
             ->assertRedirect(route('verification.show'));
@@ -59,6 +61,7 @@ class RegisterTest extends TestCase
             ->set('name', 'Sans Contact')
             ->set('password', self::PASSWORD)
             ->set('password_confirmation', self::PASSWORD)
+            ->set('accept_terms', true)
             ->call('register')
             ->assertHasErrors(['email', 'phone']);
 
@@ -72,6 +75,7 @@ class RegisterTest extends TestCase
             ->set('email', 'aminetou@example.com')
             ->set('password', self::PASSWORD)
             ->set('password_confirmation', 'something-else-2026')
+            ->set('accept_terms', true)
             ->call('register')
             ->assertHasErrors(['password']);
 
@@ -85,6 +89,7 @@ class RegisterTest extends TestCase
             ->set('email', 'aminetou@example.com')
             ->set('password', 'short')
             ->set('password_confirmation', 'short')
+            ->set('accept_terms', true)
             ->call('register')
             ->assertHasErrors(['password']);
     }
@@ -98,11 +103,27 @@ class RegisterTest extends TestCase
             ->set('email', 'existing@example.com')
             ->set('password', self::PASSWORD)
             ->set('password_confirmation', self::PASSWORD)
+            ->set('accept_terms', true)
             ->call('register')
             ->assertHasNoErrors()
             ->assertRedirect(route('verification.show'));
 
         $this->assertSame(1, User::query()->count());
+    }
+
+    public function test_the_terms_must_be_accepted_and_both_documents_are_linked(): void
+    {
+        Livewire::test(Register::class)
+            ->assertSeeHtml('href="'.route('legal.terms').'"')
+            ->assertSeeHtml('href="'.route('legal.privacy').'"')
+            ->set('name', 'Aminetou Sy')
+            ->set('email', 'aminetou@example.com')
+            ->set('password', self::PASSWORD)
+            ->set('password_confirmation', self::PASSWORD)
+            ->call('register')
+            ->assertHasErrors(['accept_terms' => 'accepted']);
+
+        $this->assertSame(0, User::query()->count());
     }
 
     /**

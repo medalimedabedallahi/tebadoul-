@@ -161,6 +161,12 @@
         <footer class="border-t border-line">
             <div class="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-2 px-4 py-6 text-sm text-ink-muted sm:px-6">
                 <p>{{ __('common.footer.copyright', ['year' => now()->year, 'name' => $appName]) }}</p>
+                <nav aria-label="{{ __('legal.footer_label') }}">
+                    <ul class="flex flex-wrap gap-x-4">
+                        <li><a href="{{ route('legal.terms') }}" class="inline-flex min-h-target items-center underline hover:text-ink">{{ __('legal.terms.title') }}</a></li>
+                        <li><a href="{{ route('legal.privacy') }}" class="inline-flex min-h-target items-center underline hover:text-ink">{{ __('legal.privacy.title') }}</a></li>
+                    </ul>
+                </nav>
                 <p>{{ __('common.footer.note') }}</p>
             </div>
         </footer>

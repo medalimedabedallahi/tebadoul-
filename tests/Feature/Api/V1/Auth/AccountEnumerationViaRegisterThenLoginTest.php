@@ -45,7 +45,7 @@ class AccountEnumerationViaRegisterThenLoginTest extends TestCase
         User::factory()->create(['email' => 'victime@example.com']);
 
         foreach (['libre@example.com', 'victime@example.com'] as $contact) {
-            $this->postJson('/api/v1/auth/register', ['name' => 'Attacker', 'email' => $contact, 'password' => self::ATTACKER_PASSWORD])
+            $this->postJson('/api/v1/auth/register', ['accept_terms' => true, 'name' => 'Attacker', 'email' => $contact, 'password' => self::ATTACKER_PASSWORD])
                 ->assertAccepted();
 
             Livewire::test(Login::class)
@@ -65,6 +65,7 @@ class AccountEnumerationViaRegisterThenLoginTest extends TestCase
     private function registerThenLogin(string $contact): array
     {
         $register = $this->postJson('/api/v1/auth/register', [
+            'accept_terms' => true,
             'name' => 'Attacker',
             'email' => $contact,
             'password' => self::ATTACKER_PASSWORD,

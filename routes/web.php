@@ -27,6 +27,9 @@ Route::view('/', 'home')->name('home');
 
 Route::post('/locale', SwitchLocaleController::class)->name('locale.switch');
 
+Route::view('/conditions-utilisation', 'legal.show', ['document' => 'terms'])->name('legal.terms');
+Route::view('/confidentialite', 'legal.show', ['document' => 'privacy'])->name('legal.privacy');
+
 Route::middleware('guest')->group(function (): void {
     Route::get('/inscription', Register::class)->name('register');
     Route::get('/connexion', Login::class)->name('login');

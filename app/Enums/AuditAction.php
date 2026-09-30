@@ -11,4 +11,5 @@ enum AuditAction: string
     case UserReinstated = 'user_reinstated';
     case ReportResolved = 'report_resolved';
     case ReportDismissed = 'report_dismissed';
+    case AccountDeleted = 'account_deleted';
 }

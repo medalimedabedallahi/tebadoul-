@@ -6,6 +6,7 @@
             $figure(__('auth.account.status.active'), $statistics['accounts']['active']),
             $figure(__('auth.account.status.pending_verification'), $statistics['accounts']['pending_verification']),
             $figure(__('auth.account.status.suspended'), $statistics['accounts']['suspended']),
+            $figure(__('admin.statistics.accounts.deleted'), $statistics['accounts']['deleted']),
         ],
         'requests' => [
             $figure(__('admin.statistics.requests.published'), $statistics['requests']['published']),

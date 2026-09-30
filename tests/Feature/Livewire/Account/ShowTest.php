@@ -16,6 +16,39 @@ class ShowTest extends TestCase
     use InteractsWithContactCodes;
     use RefreshDatabase;
 
+    public function test_deleting_the_account_signs_out_and_goes_home_but_a_wrong_password_keeps_it(): void
+    {
+        $user = User::factory()->create(['password' => self::PASSWORD]);
+
+        Livewire::actingAs($user)
+            ->test(Show::class)
+            ->set('delete_password', 'wrong-password-2026')
+            ->call('deleteAccount')
+            ->assertHasErrors(['delete_password'])
+            ->assertSet('delete_password', '');
+        $this->assertSame(UserStatus::Active, $user->fresh()->status);
+
+        Livewire::actingAs($user)
+            ->test(Show::class)
+            ->set('delete_password', self::PASSWORD)
+            ->call('deleteAccount')
+            ->assertRedirect(route('home'));
+
+        $this->assertSame(UserStatus::Deleted, $user->fresh()->status);
+        $this->assertGuest();
+    }
+
+    public function test_a_session_left_open_elsewhere_is_signed_out_once_the_account_is_deleted(): void
+    {
+        $user = User::factory()->create();
+        $user->forceFill(['status' => UserStatus::Deleted, 'email' => null])->save();
+
+        $this->actingAs($user)->get(route('account.show'))
+            ->assertRedirect(route('home'))
+            ->assertSessionHas('status', __('auth.account.deleted'));
+        $this->assertGuest();
+    }
+
     public function test_a_guest_is_redirected_to_login(): void
     {
         $this->get(route('account.show'))->assertRedirect(route('login'));

@@ -107,4 +107,30 @@
             </x-button>
         </form>
     </x-card>
+
+    <x-card :heading="__('auth.account.delete_heading')" level="2" class="border-danger">
+        <div class="flex flex-col gap-3 text-base text-ink-soft">
+            <p>{{ __('auth.account.delete_explanation') }}</p>
+            <ul class="list-disc ps-5">
+                <li>{{ __('auth.account.delete_effects.removed') }}</li>
+                <li>{{ __('auth.account.delete_effects.kept') }}</li>
+                <li>{{ __('auth.account.delete_effects.final') }}</li>
+            </ul>
+        </div>
+
+        <form wire:submit="deleteAccount" class="mt-5 flex flex-col gap-5" novalidate>
+            <x-input
+                name="delete_password"
+                type="password"
+                label="{{ __('auth.account.delete_password_label') }}"
+                wire:model="delete_password"
+                autocomplete="current-password"
+                required
+            />
+
+            <x-button type="submit" variant="danger" wire:loading.attr="disabled" wire:target="deleteAccount">
+                {{ __('auth.account.delete_submit') }}
+            </x-button>
+        </form>
+    </x-card>
 </div>

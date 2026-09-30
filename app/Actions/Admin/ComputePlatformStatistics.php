@@ -29,7 +29,7 @@ final class ComputePlatformStatistics
     /**
      * @return array{
      *     generated_at: string,
-     *     accounts: array{total: int, active: int, pending_verification: int, suspended: int},
+     *     accounts: array{total: int, active: int, pending_verification: int, suspended: int, deleted: int},
      *     requests: array{published: int, paused: int, matched: int, with_match: int, by_sector: list<array{code: string, count: int}>},
      *     matches: array<string, int>,
      *     mutual_agreements: int,
@@ -80,10 +80,12 @@ final class ComputePlatformStatistics
         return [
             'generated_at' => now()->toIso8601String(),
             'accounts' => [
-                'total' => (int) $accounts->sum(),
+                // Deleted accounts are anonymized leftovers, not users: counted apart, never in the total.
+                'total' => (int) $accounts->sum() - (int) ($accounts[UserStatus::Deleted->value] ?? 0),
                 'active' => (int) ($accounts[UserStatus::Active->value] ?? 0),
                 'pending_verification' => (int) ($accounts[UserStatus::PendingVerification->value] ?? 0),
                 'suspended' => (int) ($accounts[UserStatus::Suspended->value] ?? 0),
+                'deleted' => (int) ($accounts[UserStatus::Deleted->value] ?? 0),
             ],
             'requests' => [
                 'published' => $this->liveRequests()->count(),

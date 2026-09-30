@@ -3,20 +3,21 @@
 namespace App\Livewire\Account;
 
 use App\Actions\Auth\ChangePassword;
+use App\Actions\Auth\DeleteAccount;
 use App\Actions\Notifications\UpdateNotificationPreferences;
 use App\Livewire\Concerns\AppliesNamedRateLimiter;
 use App\Models\User;
 use App\Support\ContactMasker;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Livewire\Component;
 
 /**
- * Minimal "my account" page: name, status, masked contacts, notification preferences and a
- * change-password form. Guarded
- * by the `auth` and `account.active` web middleware (see routes/web.php): only a fully active,
- * signed-in account reaches this component.
+ * Minimal "my account" page: name, status, masked contacts, notification preferences, a
+ * change-password form and account deletion. Guarded by the `auth` and `account.active` web
+ * middleware (see routes/web.php): only a fully active, signed-in account reaches this component.
  *
  * Calls {@see ChangePassword} directly (no internal HTTP call), per ADR 0002. Contacts are never
  * shown in clear: {@see ContactMasker} is the same masking logic the API resources use.
@@ -42,6 +43,8 @@ class Show extends Component
     public string $locale = '';
 
     public ?string $preferencesSaved = null;
+
+    public string $delete_password = '';
 
     public function mount(): void
     {
@@ -106,6 +109,40 @@ class Show extends Component
             $this->password = '';
             $this->password_confirmation = '';
         }
+    }
+
+    /**
+     * Same action, rules and throttle as `DELETE /api/v1/me`; then signs out and goes home.
+     */
+    public function deleteAccount(DeleteAccount $deleteAccount): void
+    {
+        $this->resetErrorBag();
+
+        try {
+            $validated = Validator::make(['password' => $this->delete_password], DeleteAccount::rules())->validate();
+
+            $this->applyNamedRateLimiter(
+                'password-update',
+                $this->authRateLimits()->passwordUpdate($this->currentUser()->getAuthIdentifier(), (string) request()->ip()),
+                'delete_password',
+                'auth.account.password_throttled',
+            );
+
+            $deleteAccount->handle($this->currentUser(), $validated['password'], request()->ip());
+        } catch (ValidationException $exception) {
+            // The rules and the action name the field `password`; this form's field is `delete_password`.
+            throw ValidationException::withMessages(['delete_password' => $exception->errors()['password'] ?? $exception->errors()['delete_password'] ?? []]);
+        } finally {
+            $this->delete_password = '';
+        }
+
+        Auth::guard('web')->logout();
+        session()->invalidate();
+        session()->regenerateToken();
+        session()->flash('status', __('auth.account.deleted'));
+        session()->flash('status_type', 'info');
+
+        $this->redirect(route('home'));
     }
 
     public function render(): View

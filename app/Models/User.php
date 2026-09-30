@@ -36,6 +36,9 @@ use Laravel\Sanctum\HasApiTokens;
  * @property UserRole $role
  * @property string $locale
  * @property bool $email_notifications
+ * @property Carbon|null $terms_accepted_at
+ * @property string|null $terms_version
+ * @property Carbon|null $anonymized_at
  */
 #[Fillable(['name', 'email', 'phone', 'locale', 'password'])]
 #[Hidden(['password', 'remember_token', 'email', 'phone'])]
@@ -80,6 +83,8 @@ class User extends Authenticatable
             'status' => UserStatus::class,
             'role' => UserRole::class,
             'email_notifications' => 'boolean',
+            'terms_accepted_at' => 'datetime',
+            'anonymized_at' => 'datetime',
         ];
     }
 

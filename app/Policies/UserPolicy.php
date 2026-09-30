@@ -59,9 +59,23 @@ class UserPolicy
         return $actor->role === UserRole::Administrator;
     }
 
+    /**
+     * A deleted (anonymized) account is final: suspending it would let a later reinstatement bring
+     * it back.
+     */
     public function suspend(User $actor, User $target): bool
     {
-        return $this->suspendAny($actor) && $target->role === UserRole::User;
+        return $this->suspendAny($actor)
+            && $target->role === UserRole::User
+            && $target->status !== UserStatus::Deleted;
+    }
+
+    /**
+     * Only the owner deletes an account, never an administrator on their behalf.
+     */
+    public function deleteOwnAccount(User $user, User $model): bool
+    {
+        return $user->is($model) && $user->status === UserStatus::Active;
     }
 
     /**

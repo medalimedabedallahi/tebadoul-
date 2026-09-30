@@ -39,14 +39,17 @@ final class EnsureAccountIsActive
             return ApiError::make($request, 403, ApiErrorCode::Forbidden);
         }
 
-        if ($user->status === UserStatus::Suspended) {
+        // A deleted account's other sessions (another browser, another device) end here too.
+        if (in_array($user->status, [UserStatus::Suspended, UserStatus::Deleted], true)) {
+            $deleted = $user->status === UserStatus::Deleted;
+
             Auth::guard('web')->logout();
             $request->session()->invalidate();
             $request->session()->regenerateToken();
 
-            return redirect()->route('login')
-                ->with('status', __('auth.login.suspended'))
-                ->with('status_type', 'danger');
+            return redirect()->route($deleted ? 'home' : 'login')
+                ->with('status', __($deleted ? 'auth.account.deleted' : 'auth.login.suspended'))
+                ->with('status_type', $deleted ? 'info' : 'danger');
         }
 
         return redirect()->route('verification.show')

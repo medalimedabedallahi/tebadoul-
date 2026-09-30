@@ -112,7 +112,7 @@ class ContactVerificationEndpointTest extends TestCase
     {
         $this->captureContactCodes();
 
-        $this->postJson('/api/v1/auth/register', ['name' => 'Moctar', 'phone' => '41 11 11 11', 'password' => self::PASSWORD])->assertAccepted();
+        $this->postJson('/api/v1/auth/register', ['accept_terms' => true, 'name' => 'Moctar', 'phone' => '41 11 11 11', 'password' => self::PASSWORD])->assertAccepted();
         $this->postJson(self::VERIFY_URL, ['contact' => '+22241111111', 'code' => $this->lastCode()])->assertOk();
 
         $this->postJson('/api/v1/auth/login', ['identifier' => '41111111', 'password' => self::PASSWORD])

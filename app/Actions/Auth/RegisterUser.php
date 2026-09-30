@@ -46,7 +46,8 @@ final class RegisterUser
     /**
      * Validation rules for the input, shared by the API and Livewire. The password follows
      * `Password::defaults()` (12 characters minimum, breach check in production). Emails must be
-     * ASCII (see {@see ContactNormalizer::email()}).
+     * ASCII (see {@see ContactNormalizer::email()}). The terms of use and the privacy policy must be
+     * accepted: {@see self::handle()} records that acceptance, so it is only called once they are.
      *
      * @return array<string, array<int, mixed>>
      */
@@ -58,6 +59,7 @@ final class RegisterUser
             'phone' => ['nullable', 'required_without:email', 'string', 'max:32', new PhoneNumber],
             'password' => ['required', 'string', Password::defaults(), 'max:255'],
             'locale' => ['nullable', 'string', Rule::in((array) config('app.supported_locales'))],
+            'accept_terms' => ['accepted'],
         ];
     }
 
@@ -100,8 +102,11 @@ final class RegisterUser
                     'password' => $hashedPassword,
                     'locale' => $this->supportedLocale($locale),
                 ]);
-                $user->status = UserStatus::PendingVerification;
-                $user->save();
+                $user->forceFill([
+                    'status' => UserStatus::PendingVerification,
+                    'terms_accepted_at' => now(),
+                    'terms_version' => (string) config('legal.version'),
+                ])->save();
 
                 foreach (array_filter([$email, $phone]) as $contact) {
                     $this->sendVerification->handle($contact, ContactPurpose::ContactVerification);

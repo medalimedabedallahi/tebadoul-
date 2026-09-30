@@ -52,6 +52,7 @@ return [
         ],
         'accounts' => [
             'total' => 'حسابات المستخدمين',
+            'deleted' => 'حسابات محذوفة (خارج المجموع)',
         ],
         'requests' => [
             'published' => 'الطلبات النشطة (منشورة وغير منتهية)',
@@ -88,6 +89,7 @@ return [
             'user_reinstated' => 'إعادة تفعيل حساب',
             'report_resolved' => 'معالجة بلاغ',
             'report_dismissed' => 'حفظ بلاغ دون متابعة',
+            'account_deleted' => 'حذف الحساب من طرف صاحبه',
         ],
         'empty_title' => 'لا توجد إدخالات',
         'empty_description' => 'لا يوجد أي قرار يطابق عوامل التصفية هذه.',

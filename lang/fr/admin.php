@@ -52,6 +52,7 @@ return [
         ],
         'accounts' => [
             'total' => 'Comptes utilisateurs',
+            'deleted' => 'Comptes supprimés (hors total)',
         ],
         'requests' => [
             'published' => 'Demandes actives (publiées, non expirées)',
@@ -88,6 +89,7 @@ return [
             'user_reinstated' => 'Réactivation de compte',
             'report_resolved' => 'Signalement traité',
             'report_dismissed' => 'Signalement classé sans suite',
+            'account_deleted' => 'Suppression de compte par son titulaire',
         ],
         'empty_title' => 'Aucune entrée',
         'empty_description' => 'Aucune décision ne correspond à ces filtres.',

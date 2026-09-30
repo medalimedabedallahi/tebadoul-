@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\V1\Admin\UserIndexController;
 use App\Http\Controllers\Api\V1\Admin\UserReinstatementController;
 use App\Http\Controllers\Api\V1\Admin\UserSuspensionController;
 use App\Http\Controllers\Api\V1\Auth\ContactVerificationController;
+use App\Http\Controllers\Api\V1\Auth\DeleteAccountController;
 use App\Http\Controllers\Api\V1\Auth\LoginController;
 use App\Http\Controllers\Api\V1\Auth\LogoutController;
 use App\Http\Controllers\Api\V1\Auth\MeController;
@@ -90,6 +91,11 @@ Route::prefix('v1')->middleware('throttle:api')->group(function (): void {
     Route::patch('/me/preferences', [NotificationController::class, 'updatePreferences'])
         ->middleware(['auth:sanctum', 'account.active', 'abilities:'.TokenAbility::AccessApi->value])
         ->name('api.v1.me.preferences.update');
+
+    // Checks the password: same throttle as a password change (keyed by the account).
+    Route::delete('/me', DeleteAccountController::class)
+        ->middleware(['auth:sanctum', 'account.active', 'abilities:'.TokenAbility::AccessApi->value, 'throttle:password-update'])
+        ->name('api.v1.me.destroy');
 
     Route::prefix('notifications')->name('api.v1.notifications.')
         ->middleware(['auth:sanctum', 'account.active', 'abilities:'.TokenAbility::AccessApi->value])

@@ -27,7 +27,7 @@ class ContactExposureTest extends TestCase
         $this->captureContactCodes();
 
         $this->assertResponseClean(
-            $this->postJson('/api/v1/auth/register', ['name' => 'A', 'email' => 'a@example.com', 'phone' => '41 11 11 11', 'password' => self::PASSWORD])
+            $this->postJson('/api/v1/auth/register', ['accept_terms' => true, 'name' => 'A', 'email' => 'a@example.com', 'phone' => '41 11 11 11', 'password' => self::PASSWORD])
         );
     }
 
@@ -76,7 +76,7 @@ class ContactExposureTest extends TestCase
     public function test_validation_error_responses_do_not_echo_back_the_submitted_contact_in_a_leaking_way(): void
     {
         // The field VALUE is not part of Laravel's validation error body; only the field NAME is.
-        $response = $this->postJson('/api/v1/auth/register', ['name' => 'A', 'email' => 'a@example.com', 'password' => 'short']);
+        $response = $this->postJson('/api/v1/auth/register', ['accept_terms' => true, 'name' => 'A', 'email' => 'a@example.com', 'password' => 'short']);
 
         $response->assertUnprocessable();
         $this->assertStringNotContainsString('a@example.com', $response->getContent());

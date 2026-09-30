@@ -3,6 +3,7 @@
         \App\Enums\UserStatus::Active->value => 'success',
         \App\Enums\UserStatus::PendingVerification->value => 'warning',
         \App\Enums\UserStatus::Suspended->value => 'danger',
+        \App\Enums\UserStatus::Deleted->value => 'neutral',
     ];
 @endphp
 
@@ -67,7 +68,9 @@
                                 </x-status-badge>
                             </td>
                             <td class="px-4 py-3 text-end">
-                                @if ($isSuspended)
+                                @if ($user->status === \App\Enums\UserStatus::Deleted)
+                                    {{-- Anonymized and final: nothing to suspend or reinstate. --}}
+                                @elseif ($isSuspended)
                                     <x-button
                                         variant="secondary"
                                         wire:click="startDecision('{{ $user->public_id }}', 'reinstate')"

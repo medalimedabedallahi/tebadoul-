@@ -6,6 +6,7 @@ use App\Actions\Admin\ComputePlatformStatistics;
 use App\Actions\Matching\InviteToMatch;
 use App\Actions\Trust\CreateUserReport;
 use App\Enums\ReportReason;
+use App\Enums\UserStatus;
 use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -23,12 +24,13 @@ class ComputePlatformStatisticsTest extends TestCase
         app(InviteToMatch::class)->handle($rosso, $match->public_id);
         app(CreateUserReport::class)->handle($rosso, $match->public_id, ReportReason::Spam);
         User::factory()->suspended()->create();
+        User::factory()->create(['status' => UserStatus::Deleted, 'email' => null, 'email_verified_at' => null]);
         User::factory()->moderator()->create();
         $administrator = User::factory()->administrator()->create();
 
         $statistics = app(ComputePlatformStatistics::class)->handle($administrator);
 
-        $this->assertSame(['total' => 3, 'active' => 2, 'pending_verification' => 0, 'suspended' => 1], $statistics['accounts']);
+        $this->assertSame(['total' => 3, 'active' => 2, 'pending_verification' => 0, 'suspended' => 1, 'deleted' => 1], $statistics['accounts']);
         $this->assertSame(
             ['published' => 2, 'paused' => 0, 'matched' => 0, 'with_match' => 2, 'by_sector' => [['code' => 'education', 'count' => 2]]],
             $statistics['requests'],

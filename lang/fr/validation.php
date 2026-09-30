@@ -81,6 +81,8 @@ return [
     'custom' => [],
 
     'attributes' => [
+        'accept_terms' => 'acceptation des conditions',
+        'delete_password' => 'mot de passe',
         'locale' => 'langue',
         'email' => 'courriel',
         'phone' => 'téléphone',

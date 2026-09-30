@@ -149,7 +149,7 @@ class RegisterUserTest extends TestCase
         User::factory()->create(['email' => 'taken@example.com']);
 
         $validator = Validator::make(
-            ['name' => 'A', 'email' => 'taken@example.com', 'phone' => '41 11 11 11', 'password' => self::PASSWORD],
+            ['name' => 'A', 'email' => 'taken@example.com', 'phone' => '41 11 11 11', 'password' => self::PASSWORD, 'accept_terms' => true],
             RegisterUser::rules(),
         );
 

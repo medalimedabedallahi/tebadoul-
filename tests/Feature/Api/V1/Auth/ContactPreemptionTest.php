@@ -31,6 +31,7 @@ class ContactPreemptionTest extends TestCase
         $this->captureContactCodes();
 
         $this->postJson('/api/v1/auth/register', [
+            'accept_terms' => true,
             'name' => 'Attaquant',
             'email' => 'victime@example.com',
             'password' => 'Attacker-chosen-password-1',
@@ -47,6 +48,7 @@ class ContactPreemptionTest extends TestCase
 
         // The real owner's registration takes the contact over.
         $this->postJson('/api/v1/auth/register', [
+            'accept_terms' => true,
             'name' => 'Vraie Victime',
             'email' => 'victime@example.com',
             'password' => 'Victims-own-real-password-1',
@@ -71,6 +73,7 @@ class ContactPreemptionTest extends TestCase
         $this->captureContactCodes();
 
         $this->postJson('/api/v1/auth/register', [
+            'accept_terms' => true,
             'name' => 'Attaquant',
             'email' => 'attaquant@example.com',
             'phone' => '41111111',

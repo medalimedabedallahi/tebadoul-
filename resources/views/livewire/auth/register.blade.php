@@ -54,6 +54,22 @@
                 required
             />
 
+            <div class="flex flex-col gap-2">
+                <p class="text-sm text-ink-soft">
+                    {{ __('auth.register.terms_intro') }}
+                    <a href="{{ route('legal.terms') }}" target="_blank" rel="noopener" class="font-semibold text-brand-strong underline">{{ __('legal.terms.title') }}</a>
+                    {{ __('auth.register.terms_and') }}
+                    <a href="{{ route('legal.privacy') }}" target="_blank" rel="noopener" class="font-semibold text-brand-strong underline">{{ __('legal.privacy.title') }}</a>
+                    <span class="sr-only">{{ __('auth.register.terms_new_tab') }}</span>
+                </p>
+                <x-checkbox
+                    name="accept_terms"
+                    :label="__('auth.register.accept_terms_label')"
+                    wire:model="accept_terms"
+                    required
+                />
+            </div>
+
             <x-button type="submit" class="w-full" wire:loading.attr="disabled" wire:target="register">
                 <span wire:loading.remove wire:target="register">{{ __('auth.register.submit') }}</span>
                 <span wire:loading wire:target="register" role="status" class="inline-flex items-center gap-2">

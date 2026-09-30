@@ -81,6 +81,8 @@ return [
     'custom' => [],
 
     'attributes' => [
+        'accept_terms' => 'قبول الشروط',
+        'delete_password' => 'كلمة المرور',
         'locale' => 'اللغة',
         'email' => 'البريد الإلكتروني',
         'phone' => 'رقم الهاتف',

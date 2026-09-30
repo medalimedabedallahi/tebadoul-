@@ -77,11 +77,12 @@ class AuthThrottlingTest extends TestCase
     {
         for ($i = 0; $i < 3; $i++) {
             $this->postJson('/api/v1/auth/register', [
+                'accept_terms' => true,
                 'name' => 'A', 'email' => 'a@example.com', 'password' => self::PASSWORD,
             ])->assertAccepted();
         }
 
-        $this->postJson('/api/v1/auth/register', ['name' => 'A', 'email' => 'a@example.com', 'password' => self::PASSWORD])
+        $this->postJson('/api/v1/auth/register', ['accept_terms' => true, 'name' => 'A', 'email' => 'a@example.com', 'password' => self::PASSWORD])
             ->assertTooManyRequests();
     }
 }

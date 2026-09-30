@@ -24,7 +24,7 @@ class RegisterEndpointTest extends TestCase
     {
         $this->captureContactCodes();
 
-        $response = $this->postJson(self::URL, ['name' => 'Aminetou', 'email' => 'a@example.com', 'password' => self::PASSWORD]);
+        $response = $this->postJson(self::URL, ['name' => 'Aminetou', 'email' => 'a@example.com', 'password' => self::PASSWORD, 'accept_terms' => true]);
 
         $response->assertAccepted()->assertJsonStructure(['data' => ['message']]);
         $this->assertSame(['data'], array_keys($response->json()));
@@ -33,11 +33,33 @@ class RegisterEndpointTest extends TestCase
         Queue::assertPushed(SendContactCode::class, 1);
     }
 
+    public function test_registration_records_when_and_which_version_of_the_terms_was_accepted(): void
+    {
+        $this->captureContactCodes();
+        $this->freezeSecond();
+
+        $this->postJson(self::URL, ['name' => 'Aminetou', 'email' => 'a@example.com', 'password' => self::PASSWORD, 'accept_terms' => true])
+            ->assertAccepted();
+
+        $user = User::query()->sole();
+        $this->assertTrue(now()->equalTo($user->terms_accepted_at));
+        $this->assertSame(config('legal.version'), $user->terms_version);
+    }
+
+    public function test_registration_without_accepting_the_terms_is_refused_with_422(): void
+    {
+        $this->postJson(self::URL, ['name' => 'Aminetou', 'email' => 'a@example.com', 'password' => self::PASSWORD, 'accept_terms' => false])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['accept_terms' => 'Le champ acceptation des conditions doit être accepté.']);
+
+        $this->assertSame(0, User::query()->count());
+    }
+
     public function test_registers_with_a_phone_only(): void
     {
         $this->captureContactCodes();
 
-        $this->postJson(self::URL, ['name' => 'Moctar', 'phone' => '41 11 11 11', 'password' => self::PASSWORD])->assertAccepted();
+        $this->postJson(self::URL, ['name' => 'Moctar', 'phone' => '41 11 11 11', 'password' => self::PASSWORD, 'accept_terms' => true])->assertAccepted();
 
         $this->assertSame('+22241111111', User::query()->sole()->phone);
         Queue::assertPushed(SendContactCode::class, 1);
@@ -48,8 +70,8 @@ class RegisterEndpointTest extends TestCase
         $this->captureContactCodes();
         User::factory()->create(['email' => 'taken@example.com']);
 
-        $fresh = $this->postJson(self::URL, ['name' => 'New', 'email' => 'new@example.com', 'password' => self::PASSWORD]);
-        $duplicate = $this->postJson(self::URL, ['name' => 'Dup', 'email' => 'Taken@Example.com', 'password' => self::PASSWORD]);
+        $fresh = $this->postJson(self::URL, ['name' => 'New', 'email' => 'new@example.com', 'password' => self::PASSWORD, 'accept_terms' => true]);
+        $duplicate = $this->postJson(self::URL, ['name' => 'Dup', 'email' => 'Taken@Example.com', 'password' => self::PASSWORD, 'accept_terms' => true]);
 
         $duplicate->assertAccepted();
         $this->assertSame($fresh->getStatusCode(), $duplicate->getStatusCode());
@@ -62,7 +84,7 @@ class RegisterEndpointTest extends TestCase
     {
         $this->captureContactCodes();
 
-        $this->postJson(self::URL, ['name' => 'A', 'email' => 'a@example.com', 'password' => self::PASSWORD], ['Accept-Language' => 'ar'])
+        $this->postJson(self::URL, ['name' => 'A', 'email' => 'a@example.com', 'password' => self::PASSWORD, 'accept_terms' => true], ['Accept-Language' => 'ar'])
             ->assertAccepted()
             ->assertHeader('Content-Language', 'ar')
             ->assertJsonPath('data.message', 'إذا كانت المعلومات المقدمة صحيحة، فقد تم إرسال رمز التحقق.');
@@ -74,7 +96,7 @@ class RegisterEndpointTest extends TestCase
         $squatter = User::factory()->unverified()->create(['name' => 'Squatter', 'email' => 'victime@example.com', 'status' => UserStatus::PendingVerification]);
         $squatter->createToken('legacy');
 
-        $this->postJson(self::URL, ['name' => 'Vraie Victime', 'email' => 'Victime@example.com', 'password' => self::PASSWORD])->assertAccepted();
+        $this->postJson(self::URL, ['name' => 'Vraie Victime', 'email' => 'Victime@example.com', 'password' => self::PASSWORD, 'accept_terms' => true])->assertAccepted();
 
         $this->assertModelMissing($squatter);
         $this->assertSame('Vraie Victime', User::query()->where('email', 'victime@example.com')->sole()->name);
@@ -86,7 +108,7 @@ class RegisterEndpointTest extends TestCase
         $this->captureContactCodes();
         $holder = User::factory()->phoneVerified()->unverified()->create(['email' => 'shared@example.com', 'phone' => '+22241111111']);
 
-        $this->postJson(self::URL, ['name' => 'Owner', 'email' => 'shared@example.com', 'password' => self::PASSWORD])->assertAccepted();
+        $this->postJson(self::URL, ['name' => 'Owner', 'email' => 'shared@example.com', 'password' => self::PASSWORD, 'accept_terms' => true])->assertAccepted();
 
         $holder->refresh();
         $this->assertNull($holder->email);
@@ -100,7 +122,7 @@ class RegisterEndpointTest extends TestCase
         $this->captureContactCodes();
         $owner = User::factory()->phoneVerified()->create(['email' => null, 'phone' => '+22241111111', 'name' => 'Owner']);
 
-        $this->postJson(self::URL, ['name' => 'Intruder', 'email' => 'intruder@example.com', 'phone' => '41111111', 'password' => self::PASSWORD])
+        $this->postJson(self::URL, ['name' => 'Intruder', 'email' => 'intruder@example.com', 'phone' => '41111111', 'password' => self::PASSWORD, 'accept_terms' => true])
             ->assertAccepted();
 
         $this->assertSame('+22241111111', $owner->fresh()->phone);
@@ -110,7 +132,7 @@ class RegisterEndpointTest extends TestCase
 
     public function test_rejects_an_email_with_non_ascii_characters(): void
     {
-        $this->postJson(self::URL, ['name' => 'A', 'email' => 'élodie@exemple.com', 'password' => self::PASSWORD])
+        $this->postJson(self::URL, ['name' => 'A', 'email' => 'élodie@exemple.com', 'password' => self::PASSWORD, 'accept_terms' => true])
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['email']);
 
@@ -120,7 +142,7 @@ class RegisterEndpointTest extends TestCase
     public function test_a_retry_with_the_same_idempotency_key_creates_one_account_and_replays_the_response(): void
     {
         $this->captureContactCodes();
-        $payload = ['name' => 'A', 'email' => 'a@example.com', 'password' => self::PASSWORD];
+        $payload = ['name' => 'A', 'email' => 'a@example.com', 'password' => self::PASSWORD, 'accept_terms' => true];
 
         $first = $this->postJson(self::URL, $payload, ['Idempotency-Key' => 'register-0001-abcd']);
         $second = $this->postJson(self::URL, $payload, ['Idempotency-Key' => 'register-0001-abcd']);
@@ -135,7 +157,7 @@ class RegisterEndpointTest extends TestCase
     {
         User::factory()->create(['email' => 'taken@example.com']);
 
-        $this->postJson(self::URL, ['name' => 'Dup', 'email' => 'taken@example.com', 'password' => 'short'])
+        $this->postJson(self::URL, ['name' => 'Dup', 'email' => 'taken@example.com', 'password' => 'short', 'accept_terms' => true])
             ->assertUnprocessable()
             ->assertJsonPath('code', 'validation_failed')
             ->assertJsonValidationErrors(['password'])
@@ -149,10 +171,10 @@ class RegisterEndpointTest extends TestCase
     {
         return [
             'empty payload' => [[], 'name'],
-            'no contact' => [['name' => 'A', 'password' => self::PASSWORD], 'email'],
-            'malformed phone' => [['name' => 'A', 'phone' => '12', 'password' => self::PASSWORD], 'phone'],
-            'password of 11 characters' => [['name' => 'A', 'email' => 'a@example.com', 'password' => 'Short-pass1'], 'password'],
-            'array instead of string' => [['name' => ['x'], 'email' => 'a@example.com', 'password' => self::PASSWORD], 'name'],
+            'no contact' => [['name' => 'A', 'password' => self::PASSWORD, 'accept_terms' => true], 'email'],
+            'malformed phone' => [['name' => 'A', 'phone' => '12', 'password' => self::PASSWORD, 'accept_terms' => true], 'phone'],
+            'password of 11 characters' => [['name' => 'A', 'email' => 'a@example.com', 'password' => 'Short-pass1', 'accept_terms' => true], 'password'],
+            'array instead of string' => [['name' => ['x'], 'email' => 'a@example.com', 'password' => self::PASSWORD, 'accept_terms' => true], 'name'],
         ];
     }
 
@@ -169,7 +191,7 @@ class RegisterEndpointTest extends TestCase
 
     public function test_the_phone_error_message_is_readable_in_french(): void
     {
-        $this->postJson(self::URL, ['name' => 'A', 'phone' => '12', 'password' => self::PASSWORD])
+        $this->postJson(self::URL, ['name' => 'A', 'phone' => '12', 'password' => self::PASSWORD, 'accept_terms' => true])
             ->assertJsonPath('errors.phone.0', 'Le champ téléphone doit être un numéro de téléphone valide.');
     }
 

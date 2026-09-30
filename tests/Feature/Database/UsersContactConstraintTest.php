@@ -29,6 +29,17 @@ class UsersContactConstraintTest extends TestCase
         $this->assertDatabaseCount('users', 0);
     }
 
+    public function test_postgresql_accepts_an_anonymized_deleted_account_without_contact(): void
+    {
+        if (DB::getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('The CHECK constraint is only created on PostgreSQL.');
+        }
+
+        $this->insertUser(['email' => null, 'phone' => null, 'status' => 'deleted']);
+
+        $this->assertDatabaseHas('users', ['email' => null, 'phone' => null, 'status' => 'deleted']);
+    }
+
     public function test_a_user_with_only_an_email_is_accepted_on_every_driver(): void
     {
         $this->insertUser(['email' => 'only.email@example.com', 'phone' => null]);

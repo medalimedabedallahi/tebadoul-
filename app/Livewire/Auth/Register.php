@@ -29,6 +29,8 @@ class Register extends Component
 
     public string $password_confirmation = '';
 
+    public bool $accept_terms = false;
+
     public function register(RegisterUser $registerUser): void
     {
         $rules = RegisterUser::rules();
@@ -41,6 +43,7 @@ class Register extends Component
                 'phone' => $this->phone !== '' ? $this->phone : null,
                 'password' => $this->password,
                 'password_confirmation' => $this->password_confirmation,
+                'accept_terms' => $this->accept_terms,
             ],
             $rules,
         )->validate();
