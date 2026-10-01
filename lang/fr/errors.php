@@ -29,7 +29,7 @@ return [
         ],
         '503' => [
             'title' => 'Service momentanément indisponible',
-            'description' => 'Badal est en maintenance. Réessayez dans quelques minutes.',
+            'description' => 'Tebadoul est en maintenance. Réessayez dans quelques minutes.',
         ],
         'default' => [
             'title' => 'Une erreur est survenue',

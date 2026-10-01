@@ -1,6 +1,7 @@
 <?php
 
 return [
+    'app_name' => 'Tebadoul',
     'skip_to_content' => 'Aller au contenu principal',
     'tagline' => 'Plateforme de permutation professionnelle en Mauritanie',
     'loading' => 'Chargement en cours',
@@ -23,6 +24,10 @@ return [
         'next' => 'Page suivante',
         'page_of' => 'Page :current sur :last',
         'page' => 'Page :current',
+    ],
+    'advertisement' => [
+        'label' => 'Publicité',
+        'new_tab' => '(s’ouvre dans un nouvel onglet)',
     ],
     'footer' => [
         'copyright' => '© :year :name',

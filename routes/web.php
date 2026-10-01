@@ -1,7 +1,9 @@
 <?php
 
+use App\Http\Controllers\AdvertisementImageController;
 use App\Http\Controllers\SwitchLocaleController;
 use App\Livewire\Account\Show as AccountShow;
+use App\Livewire\Admin\Advertisements\Index as AdminAdvertisementsIndex;
 use App\Livewire\Admin\AuditLogs\Index as AdminAuditLogsIndex;
 use App\Livewire\Admin\Reports\Index as AdminReportsIndex;
 use App\Livewire\Admin\Statistics\Show as AdminStatisticsShow;
@@ -18,6 +20,7 @@ use App\Livewire\MobilityRequests\Index as RequestsIndex;
 use App\Livewire\MobilityRequests\Show as RequestsShow;
 use App\Livewire\Notifications\Index as NotificationsIndex;
 use App\Livewire\Profile\Edit as ProfileEdit;
+use App\Models\Advertisement;
 use App\Models\AuditLog;
 use App\Models\User;
 use App\Models\UserReport;
@@ -29,6 +32,9 @@ Route::post('/locale', SwitchLocaleController::class)->name('locale.switch');
 
 Route::view('/conditions-utilisation', 'legal.show', ['document' => 'terms'])->name('legal.terms');
 Route::view('/confidentialite', 'legal.show', ['document' => 'privacy'])->name('legal.privacy');
+
+// Public: the controller only serves the banner of a displayable advertisement to non-administrators.
+Route::get('/publicites/{advertisement}/image', AdvertisementImageController::class)->name('advertisements.image');
 
 Route::middleware('guest')->group(function (): void {
     Route::get('/inscription', Register::class)->name('register');
@@ -68,4 +74,7 @@ Route::middleware(['auth', 'account.active'])->group(function (): void {
     Route::get('/administration/journal-audit', AdminAuditLogsIndex::class)
         ->middleware('can:viewAny,'.AuditLog::class)
         ->name('admin.audit-logs.index');
+    Route::get('/administration/publicites', AdminAdvertisementsIndex::class)
+        ->middleware('can:viewAny,'.Advertisement::class)
+        ->name('admin.advertisements.index');
 });

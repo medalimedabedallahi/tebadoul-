@@ -4,7 +4,7 @@ return [
     'main' => 'التنقل الرئيسي',
     'menu' => 'القائمة',
     'home' => 'الرئيسية',
-    'home_link' => 'Badal، العودة إلى الصفحة الرئيسية',
+    'home_link' => 'تبادل، العودة إلى الصفحة الرئيسية',
     'language' => 'اللغة',
     'language_switcher' => 'اختيار اللغة',
     'languages' => [
@@ -23,5 +23,6 @@ return [
     'notifications' => 'الإشعارات',
     'statistics' => 'الإحصائيات',
     'audit' => 'سجل التدقيق',
+    'advertisements' => 'الإعلانات',
     'logout' => 'تسجيل الخروج',
 ];

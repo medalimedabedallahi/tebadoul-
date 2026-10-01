@@ -24,18 +24,18 @@ class HomePageTest extends TestCase
     }
 
     /**
-     * @return array<string, array{string, string, string, string}>
+     * @return array<string, array{string, string, string, string, string}>
      */
     public static function localeProvider(): array
     {
         return [
-            'français' => ['fr', 'ltr', 'Aller au contenu principal', 'Accueil'],
-            'arabe' => ['ar', 'rtl', 'انتقل إلى المحتوى الرئيسي', 'الرئيسية'],
+            'français' => ['fr', 'ltr', 'Aller au contenu principal', 'Accueil', 'Tebadoul'],
+            'arabe' => ['ar', 'rtl', 'انتقل إلى المحتوى الرئيسي', 'الرئيسية', 'تبادل'],
         ];
     }
 
     #[DataProvider('localeProvider')]
-    public function test_home_page_exposes_language_and_direction(string $locale, string $direction, string $skipLabel, string $title): void
+    public function test_home_page_exposes_language_and_direction(string $locale, string $direction, string $skipLabel, string $title, string $appName): void
     {
         app()->setLocale($locale);
 
@@ -44,7 +44,7 @@ class HomePageTest extends TestCase
         $response->assertOk();
         $response->assertSee('<html lang="'.$locale.'" dir="'.$direction.'"', false);
         $response->assertSee($skipLabel);
-        $response->assertSee('<title>'.$title.' | '.config('app.name').'</title>', false);
+        $response->assertSee('<title>'.$title.' | '.$appName.'</title>', false);
     }
 
     public function test_home_page_has_skip_link_and_landmarks(): void

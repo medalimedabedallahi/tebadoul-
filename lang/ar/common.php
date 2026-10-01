@@ -1,6 +1,7 @@
 <?php
 
 return [
+    'app_name' => 'تبادل',
     'skip_to_content' => 'انتقل إلى المحتوى الرئيسي',
     'tagline' => 'منصة لتبادل المواقع الوظيفية في موريتانيا',
     'loading' => 'جارٍ التحميل',
@@ -23,6 +24,10 @@ return [
         'next' => 'الصفحة التالية',
         'page_of' => 'الصفحة :current من :last',
         'page' => 'الصفحة :current',
+    ],
+    'advertisement' => [
+        'label' => 'إعلان',
+        'new_tab' => '(يُفتح في علامة تبويب جديدة)',
     ],
     'footer' => [
         'copyright' => '© :year :name',

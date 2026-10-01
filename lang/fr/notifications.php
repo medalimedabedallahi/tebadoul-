@@ -29,11 +29,11 @@ return [
         'message_received' => 'Vous avez reçu un nouveau message.',
     ],
     'mail' => [
-        'subject' => 'Badal : :event',
+        'subject' => 'Tebadoul : :event',
         'greeting' => 'Bonjour,',
         'action' => 'Voir la correspondance',
         'preferences' => 'Vous pouvez désactiver ces courriels depuis la page « Mon compte ».',
-        'salutation' => 'L’équipe Badal',
+        'salutation' => 'L’équipe Tebadoul',
     ],
     'preferences' => [
         'heading' => 'Préférences de notification',

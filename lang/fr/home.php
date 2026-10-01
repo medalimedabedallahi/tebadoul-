@@ -2,14 +2,14 @@
 
 return [
     'title' => 'Accueil',
-    'description' => 'Badal met en relation les enseignants et les soignants de Mauritanie qui veulent échanger leurs postes.',
+    'description' => 'Tebadoul met en relation les enseignants et les soignants de Mauritanie qui veulent échanger leurs postes.',
     'example_from' => 'Rosso',
     'example_from_detail' => 'Trarza',
     'example_to' => 'Néma',
     'example_to_detail' => 'Hodh Ech Chargui',
     'example_label' => 'Exemple : un poste à Rosso échangé contre un poste à Néma.',
     'heading' => 'Échangez votre poste avec un collègue qui veut le vôtre.',
-    'intro' => 'Vous enseignez à Rosso et voulez rejoindre Néma ? Quelqu’un à Néma veut peut-être venir à Rosso. Badal vous trouve, sans jamais montrer vos coordonnées sans votre accord.',
+    'intro' => 'Vous enseignez à Rosso et voulez rejoindre Néma ? Quelqu’un à Néma veut peut-être venir à Rosso. Tebadoul vous trouve, sans jamais montrer vos coordonnées sans votre accord.',
     'audience' => 'Pour les enseignants et les professionnels de santé.',
     'cta_register' => 'Créer mon compte',
     'cta_login' => 'J’ai déjà un compte',
@@ -29,7 +29,7 @@ return [
             'body' => 'Chaque correspondance est expliquée : pourquoi elle vous est proposée et avec quel score.',
         ],
     ],
-    'principles_heading' => 'Ce que Badal garantit',
+    'principles_heading' => 'Ce que Tebadoul garantit',
     'principles' => [
         'consent' => [
             'title' => 'Vos coordonnées restent à vous',

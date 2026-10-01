@@ -19,7 +19,7 @@ return [
 
     'login' => [
         'title' => 'Connexion',
-        'description' => 'Connectez-vous à votre compte Badal.',
+        'description' => 'Connectez-vous à votre compte Tebadoul.',
         'heading' => 'Connexion',
         'identifier_label' => 'E-mail ou téléphone',
         'password_label' => 'Mot de passe',
@@ -34,7 +34,7 @@ return [
 
     'register' => [
         'title' => 'Créer un compte',
-        'description' => 'Créez votre compte Badal.',
+        'description' => 'Créez votre compte Tebadoul.',
         'heading' => 'Créer un compte',
         'intro' => 'Renseignez au moins une adresse e-mail ou un numéro de téléphone.',
         'name_label' => 'Nom complet',
@@ -100,7 +100,7 @@ return [
 
     'account' => [
         'title' => 'Mon compte',
-        'description' => 'Gérez les informations de votre compte Badal.',
+        'description' => 'Gérez les informations de votre compte Tebadoul.',
         'heading' => 'Mon compte',
         'password_throttled' => 'Trop de tentatives de changement de mot de passe. Veuillez réessayer dans :seconds secondes.',
         'name_label' => 'Nom',

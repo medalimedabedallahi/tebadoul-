@@ -4,7 +4,7 @@ return [
     'main' => 'Navigation principale',
     'menu' => 'Menu',
     'home' => 'Accueil',
-    'home_link' => 'Badal, retour à l’accueil',
+    'home_link' => 'Tebadoul, retour à l’accueil',
     'language' => 'Langue',
     'language_switcher' => 'Choisir la langue',
     'languages' => [
@@ -23,5 +23,6 @@ return [
     'notifications' => 'Notifications',
     'statistics' => 'Statistiques',
     'audit' => 'Journal d’audit',
+    'advertisements' => 'Publicités',
     'logout' => 'Se déconnecter',
 ];

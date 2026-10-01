@@ -14,12 +14,12 @@ return [
 
     'terms' => [
         'title' => 'Conditions d’utilisation',
-        'description' => 'Les règles d’utilisation du service Badal de mise en relation pour les permutations professionnelles.',
+        'description' => 'Les règles d’utilisation du service Tebadoul de mise en relation pour les permutations professionnelles.',
         'sections' => [
             [
                 'heading' => 'Objet du service',
                 'paragraphs' => [
-                    'Badal met en relation des agents publics, notamment des enseignants et des professionnels de santé, qui souhaitent permuter leur affectation avec un collègue.',
+                    'Tebadoul met en relation des agents publics, notamment des enseignants et des professionnels de santé, qui souhaitent permuter leur affectation avec un collègue.',
                     'Le service est gratuit. Il est proposé en phase pilote par [nom de l’organisme éditeur, à compléter].',
                 ],
             ],
@@ -33,8 +33,8 @@ return [
             [
                 'heading' => 'Fonctionnement des correspondances',
                 'paragraphs' => [
-                    'Badal propose des correspondances entre demandes compatibles, selon des règles publiées et versionnées. Le score affiché est indicatif.',
-                    'Badal ne garantit ni l’existence d’une correspondance ni l’obtention d’une permutation. La décision de permutation relève exclusivement de l’administration compétente ; Badal n’intervient pas dans la procédure administrative.',
+                    'Tebadoul propose des correspondances entre demandes compatibles, selon des règles publiées et versionnées. Le score affiché est indicatif.',
+                    'Tebadoul ne garantit ni l’existence d’une correspondance ni l’obtention d’une permutation. La décision de permutation relève exclusivement de l’administration compétente ; Tebadoul n’intervient pas dans la procédure administrative.',
                 ],
             ],
             [
@@ -66,7 +66,7 @@ return [
             [
                 'heading' => 'Responsabilité',
                 'paragraphs' => [
-                    'Le service est fourni en l’état pendant la phase pilote ; sa disponibilité n’est pas garantie. Badal n’est pas partie aux accords conclus entre utilisateurs.',
+                    'Le service est fourni en l’état pendant la phase pilote ; sa disponibilité n’est pas garantie. Tebadoul n’est pas partie aux accords conclus entre utilisateurs.',
                 ],
             ],
             [
@@ -86,7 +86,7 @@ return [
 
     'privacy' => [
         'title' => 'Politique de confidentialité',
-        'description' => 'Comment Badal collecte, utilise et protège vos données personnelles.',
+        'description' => 'Comment Tebadoul collecte, utilise et protège vos données personnelles.',
         'sections' => [
             [
                 'heading' => 'Responsable du traitement',
@@ -137,7 +137,7 @@ return [
             [
                 'heading' => 'Cookies',
                 'paragraphs' => [
-                    'Badal n’utilise que des cookies strictement nécessaires : session de connexion, protection contre la falsification des formulaires et langue choisie. Aucun cookie publicitaire ni de mesure d’audience.',
+                    'Tebadoul n’utilise que des cookies strictement nécessaires : session de connexion, protection contre la falsification des formulaires et langue choisie. Aucun cookie publicitaire ni de mesure d’audience. Les espaces publicitaires affichent des annonces choisies par l’équipe, sans cookie ni traceur : aucune donnée vous concernant n’est transmise aux annonceurs.',
                 ],
             ],
             [

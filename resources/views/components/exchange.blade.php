@@ -1,6 +1,6 @@
 {{--
     Diptyque d'échange : deux postes face à face, reliés par le signe d'échange (safran).
-    C'est l'élément signature de Badal : accueil, demandes et correspondances.
+    C'est l'élément signature de Tebadoul : accueil, demandes et correspondances.
     La grille suit la direction de lecture : en arabe, le premier poste passe à droite.
 
     @props from: libellé principal du premier poste (ex. « Rosso »)

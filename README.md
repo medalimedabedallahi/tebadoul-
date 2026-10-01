@@ -1,6 +1,6 @@
-# Badal
+# Tebadoul
 
-Badal est une plateforme de mise en relation pour les permutations professionnelles en Mauritanie. Le MVP cible les enseignants et professionnels de sante avec une application Laravel/Livewire et une API REST versionnee.
+Tebadoul (anciennement Badal) est une plateforme de mise en relation pour les permutations professionnelles en Mauritanie. Le MVP cible les enseignants et professionnels de sante avec une application Laravel/Livewire et une API REST versionnee.
 
 ## Socle technique
 

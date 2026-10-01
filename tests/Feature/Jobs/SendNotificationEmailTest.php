@@ -51,7 +51,7 @@ class SendNotificationEmailTest extends TestCase
 
         $mail = (new MatchActivityNotification(NotificationType::InvitationReceived, '01jzmatch0000000000000000'))->toMail($user);
 
-        $this->assertSame('Badal : Vous avez reçu une invitation sur une correspondance.', $mail->subject);
+        $this->assertSame('Tebadoul : Vous avez reçu une invitation sur une correspondance.', $mail->subject);
         $this->assertSame(route('matches.show', '01jzmatch0000000000000000'), $mail->actionUrl);
         $this->assertStringNotContainsString('Aminetou', (string) $mail->render());
     }

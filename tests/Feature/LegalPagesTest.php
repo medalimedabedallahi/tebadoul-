@@ -19,7 +19,7 @@ class LegalPagesTest extends TestCase
             $this->get(route($route))
                 ->assertOk()
                 ->assertSee($title)
-                ->assertSee('Version du 30 septembre 2026')
+                ->assertSee('Version du 1 octobre 2026')
                 ->assertSee(__('legal.draft_notice'));
         }
     }

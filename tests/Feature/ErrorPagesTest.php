@@ -7,7 +7,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
- * Part of the pilot gate on French, Arabic and RTL: web error pages use the Badal layout in the
+ * Part of the pilot gate on French, Arabic and RTL: web error pages use the Tebadoul layout in the
  * visitor's language instead of the framework's English pages.
  */
 class ErrorPagesTest extends TestCase

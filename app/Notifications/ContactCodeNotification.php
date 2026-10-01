@@ -35,7 +35,7 @@ class ContactCodeNotification extends Notification
         $isReset = $this->purpose === ContactPurpose::PasswordReset;
 
         return (new MailMessage)
-            ->subject($isReset ? __('Your Badal password reset code') : __('Your Badal verification code'))
+            ->subject($isReset ? __('Your Tebadoul password reset code') : __('Your Tebadoul verification code'))
             ->line($isReset ? __('Your password reset code is:') : __('Your verification code is:'))
             ->line('**'.$this->code.'**')
             ->line(__('This code is valid for :minutes minutes. Do not share it with anyone.', [

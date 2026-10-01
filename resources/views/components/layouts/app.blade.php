@@ -15,7 +15,7 @@
     $locale = app()->getLocale();
     $direction = in_array($locale, ['ar', 'fa', 'he', 'ur'], true) ? 'rtl' : 'ltr';
     $supportedLocales = config('app.supported_locales', ['fr', 'ar']);
-    $appName = config('app.name');
+    $appName = __('common.app_name');
     $script = $direction === 'rtl' ? 'arabic' : 'latin';
     $navLink = 'inline-flex min-h-target items-center whitespace-nowrap rounded-control px-3 text-base font-medium text-ink-soft hover:bg-brand-soft hover:text-ink '
         .'aria-[current=page]:font-semibold aria-[current=page]:text-ink aria-[current=page]:underline aria-[current=page]:decoration-accent aria-[current=page]:decoration-2 aria-[current=page]:underline-offset-8';
@@ -38,8 +38,19 @@
             auth()->user()->can('viewAny', \App\Models\AuditLog::class)
                 ? ['route' => 'admin.audit-logs.index', 'active' => 'admin.audit-logs.*', 'label' => __('nav.audit')]
                 : null,
+            auth()->user()->can('viewAny', \App\Models\Advertisement::class)
+                ? ['route' => 'admin.advertisements.index', 'active' => 'admin.advertisements.*', 'label' => __('nav.advertisements')]
+                : null,
         ])
         : [['route' => 'home', 'active' => 'home', 'label' => __('nav.home')]];
+    // Page advertising space, by route, shown after the content. Livewire updates never re-render
+    // the layout, so the advertisement drawn on page load stays in place.
+    $adPlacement = match (true) {
+        request()->routeIs('home') => \App\Enums\AdPlacement::Home,
+        request()->routeIs('login', 'register', 'password.request', 'password.reset', 'verification.show') => \App\Enums\AdPlacement::Auth,
+        auth()->check() && request()->routeIs('requests.*', 'matches.*', 'notifications.*') => \App\Enums\AdPlacement::Member,
+        default => null,
+    };
 @endphp
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', $locale) }}" dir="{{ $direction }}">
@@ -155,10 +166,16 @@
                 @endif
 
                 {{ $slot }}
+
+                {{-- After the content: the page's heading and task always come first. --}}
+                @if ($adPlacement)
+                    <x-ad-slot :placement="$adPlacement" :centered="$adPlacement === \App\Enums\AdPlacement::Auth" class="mt-14" />
+                @endif
             </div>
         </main>
 
         <footer class="border-t border-line">
+            <x-ad-slot :placement="\App\Enums\AdPlacement::Footer" compact class="mx-auto max-w-5xl px-4 pt-6 sm:px-6" />
             <div class="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-2 px-4 py-6 text-sm text-ink-muted sm:px-6">
                 <p>{{ __('common.footer.copyright', ['year' => now()->year, 'name' => $appName]) }}</p>
                 <nav aria-label="{{ __('legal.footer_label') }}">

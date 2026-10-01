@@ -29,11 +29,11 @@ return [
         'message_received' => 'وصلتك رسالة جديدة.',
     ],
     'mail' => [
-        'subject' => 'Badal: :event',
+        'subject' => 'تبادل: :event',
         'greeting' => 'مرحبًا،',
         'action' => 'عرض التطابق',
         'preferences' => 'يمكنك إيقاف هذه الرسائل من صفحة «حسابي».',
-        'salutation' => 'فريق Badal',
+        'salutation' => 'فريق تبادل',
     ],
     'preferences' => [
         'heading' => 'تفضيلات الإشعارات',

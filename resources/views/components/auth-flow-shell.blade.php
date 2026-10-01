@@ -21,7 +21,7 @@
                 <span class="inline-flex size-11 items-center justify-center rounded-full border border-white/30 bg-white/10">
                     <x-icon name="exchange" size="size-6" />
                 </span>
-                <span class="text-xl font-bold">{{ config('app.name') }}</span>
+                <span class="text-xl font-bold">{{ __('common.app_name') }}</span>
             </div>
 
             <div class="flex max-w-sm flex-col gap-3">

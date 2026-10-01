@@ -12,7 +12,7 @@
     $locale = app()->getLocale();
     $direction = in_array($locale, ['ar', 'fa', 'he', 'ur'], true) ? 'rtl' : 'ltr';
     $script = $direction === 'rtl' ? 'arabic' : 'latin';
-    $appName = config('app.name');
+    $appName = __('common.app_name');
     $title = __("errors.codes.{$key}.title");
 @endphp
 <!DOCTYPE html>
