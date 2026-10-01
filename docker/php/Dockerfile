@@ -8,7 +8,7 @@
 # Les images de base sont epinglees par digest ; Dependabot (docker) propose les mises a jour.
 # Build : docker build -f docker/php/Dockerfile --target production -t badal-app:local .
 
-FROM php:8.5-fpm-alpine@sha256:ce1dcc234879feab0f309100e55e89e7cf21b9085e76de2a03a8240cec02751e AS base
+FROM php:8.5-fpm-alpine@sha256:fa01fb1645cd0fc566a5f146b099adace33b906571f972f71f2182a7c12d1cd7 AS base
 
 RUN apk add --no-cache \
         icu-data-full \
