@@ -149,7 +149,7 @@ services:
   # Jobs + sessions : ne doit JAMAIS eliminer de cle -> noeviction, AOF active.
   redis-queue:
     <<: *service-defaults
-    image: redis:8-alpine@sha256:ef216d85ec44f4fdf7c0e6df2d1757a4734ed32fbb278cabd3181b5a27353b79
+    image: redis:8-alpine@sha256:3811787313eba226a2ef38658c6ccb91cd5e110edc89c37767de373120a0e5a0
     user: redis
     # Mot de passe lu depuis le secret, ecrit dans un fichier de config temporaire (absent des arguments du processus).
     command:
@@ -173,7 +173,7 @@ services:
   # Cache : volatile (rien a sauvegarder), eviction LRU autorisee.
   redis-cache:
     <<: *service-defaults
-    image: redis:8-alpine@sha256:ef216d85ec44f4fdf7c0e6df2d1757a4734ed32fbb278cabd3181b5a27353b79
+    image: redis:8-alpine@sha256:3811787313eba226a2ef38658c6ccb91cd5e110edc89c37767de373120a0e5a0
     user: redis
     command:
       - sh
