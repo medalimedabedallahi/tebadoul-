@@ -52,7 +52,18 @@ Prerequis a regler dans hPanel avant le premier deploiement :
 1. Pointer les enregistrements DNS `A` (et `AAAA` seulement si IPv6 est configure) vers le VPS.
 2. Autoriser uniquement SSH, HTTP et HTTPS dans le pare-feu Hostinger ; ne jamais ouvrir PostgreSQL ou Redis.
 3. Installer un frontal TLS sur l'hote (Caddy, Traefik ou Nginx) qui ecoute sur 80/443 et transmet vers
-   `127.0.0.1:8080`, en ecrasant les en-tetes `X-Forwarded-*` recus du client.
+   `127.0.0.1:8080`, en ecrasant les en-tetes `X-Forwarded-*` recus du client. Avec Caddy (paquet officiel), la
+   configuration fournie `ops/hostinger/Caddyfile.example` le fait par defaut et gere seule le certificat :
+
+   ```bash
+   sudo apt install --yes debian-keyring debian-archive-keyring apt-transport-https curl
+   curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+   curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-stable.list
+   sudo chmod o+r /usr/share/keyrings/caddy-stable-archive-keyring.gpg /etc/apt/sources.list.d/caddy-stable.list
+   sudo apt update && sudo apt install caddy
+   sudo cp /opt/badal/ops/hostinger/Caddyfile.example /etc/caddy/Caddyfile   # remplacer tebadoul.example
+   sudo caddy validate --config /etc/caddy/Caddyfile && sudo systemctl reload caddy
+   ```
 4. Activer les sauvegardes quotidiennes Hostinger. Elles completent, mais ne remplacent pas, les dumps PostgreSQL
    chiffres et copies hors du VPS.
 
@@ -92,6 +103,26 @@ PG_MODE=compose BADAL_COMPOSE_ARGS="--env-file .env.production -f compose.prod.y
 Configurer les secrets GitHub de l'environnement `production` (`DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`,
 `DEPLOY_KNOWN_HOSTS`) et la variable `DEPLOY_PATH=/opt/badal`. Le compte de deploiement doit pouvoir utiliser Docker
 et ecrire dans `/opt/badal`, sans connexion SSH par mot de passe.
+
+Ordre de mise en ligne (premiere fois) :
+
+1. Pousser le depot sur GitHub (prive), fusionner la branche dans `main` par pull request, CI verte.
+2. VPS : modele Ubuntu 24.04 + Docker, DNS, pare-feu, Caddy (ci-dessus), compte `deploy` (cle SSH, groupe
+   `docker`), `/opt/badal`, secrets dans `/etc/badal/secrets`, `.env.production` copie de `.env.hostinger.example`.
+3. GitHub : environnement `production` (reviewers requis, deploiement limite a `main` / `v*`), secrets et variable
+   ci-dessus. Les images sont publiees sur GHCR sous `ghcr.io/<compte>/<depot>-app` et `-nginx` : reporter ces noms
+   dans `BADAL_IMAGE` / `BADAL_NGINX_IMAGE` de `.env.production` (le job de deploiement les transmet aussi).
+4. Tag `vX.Y.Z` sur `main` (ou lancement manuel de Release avec `deploy`), puis approbation du job de deploiement.
+5. Controles ci-dessus, import des referentiels, puis premier administrateur : la personne s'inscrit sur le site
+   et verifie son courriel, ensuite (`dc` = `docker compose --env-file .env.production -f compose.prod.yaml -f compose.hostinger.yaml`) :
+
+   ```bash
+   dc exec app php artisan db:seed --class=ReferenceDataSeeder --force
+   dc exec app php artisan auth:assign-role admin@votre-domaine.example administrator
+   ```
+
+Les bannieres publicitaires sont stockees en base (`advertisements.image_data`) : aucun volume de fichiers a
+prevoir, les dumps PostgreSQL les couvrent.
 
 ## Deployer, revenir en arriere
 

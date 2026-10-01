@@ -1,5 +1,6 @@
 <?php
 
+use App\Actions\Admin\AssignUserRole;
 use App\Actions\Auth\PruneExpiredPendingAccounts;
 use App\Actions\Matching\ComputeDirectMatches;
 use App\Actions\Matching\ExpireInvitations;
@@ -8,9 +9,12 @@ use App\Actions\References\ImportReferences;
 use App\Enums\MatchStatus;
 use App\Enums\MobilityRequestStatus;
 use App\Enums\ReferenceType;
+use App\Enums\UserRole;
+use App\Exceptions\Admin\RoleNotAssignableException;
 use App\Exceptions\References\InvalidReferenceImportException;
 use App\Models\MatchParticipant;
 use App\Models\MobilityRequest;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -24,6 +28,32 @@ Artisan::command('auth:prune-pending-accounts', function (PruneExpiredPendingAcc
 
     return 0;
 })->purpose('Delete the accounts pending verification, without any verified contact, older than auth.pending_accounts.ttl_days');
+
+Artisan::command('auth:assign-role {email : Email address of an active account with a verified email} {role=administrator : user, moderator or administrator}', function (AssignUserRole $assign): int {
+    $role = UserRole::tryFrom((string) $this->argument('role'));
+
+    if ($role === null) {
+        $this->error('Unknown role. Expected one of: '.implode(', ', array_column(UserRole::cases(), 'value')).'.');
+
+        return 1;
+    }
+
+    try {
+        $user = $assign->handle((string) $this->argument('email'), $role);
+    } catch (ModelNotFoundException) {
+        $this->error('No account uses this email address.');
+
+        return 1;
+    } catch (RoleNotAssignableException) {
+        $this->error('The account must be active with a verified email address.');
+
+        return 1;
+    }
+
+    $this->info(sprintf('Account %s now has the %s role.', $user->public_id, $role->value));
+
+    return 0;
+})->purpose('Give a role to an existing account (names the first administrator of an environment)');
 
 Artisan::command('references:import {type : sectors, wilayas, moughataas, professions, specialties, grades or establishments} {path : UTF-8 CSV file}', function (ImportReferences $import): int {
     $type = ReferenceType::tryFrom((string) $this->argument('type'));
