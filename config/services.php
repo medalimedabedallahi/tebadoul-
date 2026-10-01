@@ -35,24 +35,4 @@ return [
         ],
     ],
 
-    /*
-    |--------------------------------------------------------------------------
-    | SMS Gateway
-    |--------------------------------------------------------------------------
-    |
-    | Supported drivers: "log" (writes a masked line to the logs, never the code or the full
-    | number; development and tests) and "null" (discards the message). No real provider is
-    | integrated yet (pending product decision): an unknown driver stops the application at boot.
-    |
-    | In production and staging, the "log" driver is refused at boot (no SMS would ever be
-    | delivered) unless SMS_ALLOW_LOG_DRIVER=true: an explicit, documented override for a
-    | pre-production that has no SMS provider yet. Never set it on the real production.
-    |
-    */
-
-    'sms' => [
-        'driver' => env('SMS_DRIVER', 'log'),
-        'allow_log_driver' => (bool) env('SMS_ALLOW_LOG_DRIVER', false),
-    ],
-
 ];

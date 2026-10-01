@@ -39,28 +39,22 @@ class RegisterUserTest extends TestCase
         $this->assertSame(ContactPurpose::ContactVerification, $this->activeVerification('aminetou@example.com')->purpose);
     }
 
-    public function test_registers_an_account_with_a_phone_only_and_normalizes_the_number(): void
+    public function test_requires_an_email_even_when_a_phone_is_given(): void
     {
-        $this->captureContactCodes();
+        $this->expectException(InvalidArgumentException::class);
 
         app(RegisterUser::class)->handle('Moctar', null, '41 11 11 11', self::PASSWORD);
-
-        $user = User::query()->where('phone', '+22241111111')->firstOrFail();
-        $this->assertNull($user->email);
-        $this->assertSame(UserStatus::PendingVerification, $user->status);
-        $this->assertNotNull($this->activeVerification('+22241111111'));
-        Queue::assertPushed(SendContactCode::class, 1);
     }
 
-    public function test_sends_one_code_per_contact_when_both_are_given(): void
+    public function test_sends_only_one_email_code_when_both_contacts_are_given(): void
     {
         $this->captureContactCodes();
 
         app(RegisterUser::class)->handle('Fatimetou', 'f@example.com', '+22242222222', self::PASSWORD);
 
-        Queue::assertPushed(SendContactCode::class, 2);
+        Queue::assertPushed(SendContactCode::class, 1);
         $this->assertNotNull($this->activeVerification('f@example.com'));
-        $this->assertNotNull($this->activeVerification('+22242222222'));
+        $this->assertDatabaseMissing('contact_verifications', ['contact' => '+22242222222']);
     }
 
     public function test_does_nothing_when_the_email_already_belongs_to_an_account(): void
@@ -123,8 +117,8 @@ class RegisterUserTest extends TestCase
         return [
             'no contact at all' => [['name' => 'A', 'password' => self::PASSWORD], 'email'],
             'malformed email' => [['name' => 'A', 'email' => 'not-an-email', 'password' => self::PASSWORD], 'email'],
-            'malformed phone' => [['name' => 'A', 'phone' => '12', 'password' => self::PASSWORD], 'phone'],
-            'phone with letters' => [['name' => 'A', 'phone' => 'abcdefgh', 'password' => self::PASSWORD], 'phone'],
+            'phone without email' => [['name' => 'A', 'phone' => '41 11 11 11', 'password' => self::PASSWORD], 'email'],
+            'malformed optional phone' => [['name' => 'A', 'email' => 'a@example.com', 'phone' => '12', 'password' => self::PASSWORD], 'phone'],
             'missing name' => [['email' => 'a@example.com', 'password' => self::PASSWORD], 'name'],
             'missing password' => [['name' => 'A', 'email' => 'a@example.com'], 'password'],
             'password of 11 characters' => [['name' => 'A', 'email' => 'a@example.com', 'password' => 'Short-pass1'], 'password'],

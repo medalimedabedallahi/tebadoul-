@@ -8,9 +8,12 @@
         <form wire:submit="request" class="flex flex-col gap-5" novalidate>
             <x-input
                 name="contact"
+                type="email"
                 label="{{ __('auth.password_reset.contact_label') }}"
                 wire:model="contact"
-                autocomplete="username"
+                autocomplete="email"
+                inputmode="email"
+                dir="ltr"
                 required
             />
 

@@ -7,7 +7,7 @@ use App\Enums\ContactType;
 use App\Enums\UserStatus;
 use App\Exceptions\Auth\InvalidVerificationCodeException;
 use App\Models\User;
-use App\Rules\ContactIdentifier;
+use App\Rules\AsciiEmail;
 use App\Support\ContactNormalizer;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -19,9 +19,8 @@ use Illuminate\Validation\Rules\Password;
  * The code is single-use, expires, and is locked after too many wrong guesses (see
  * {@see ConsumeContactCode}). It is only accepted for a VERIFIED contact of an active account. On
  * success, in one transaction: the password is replaced, the "remember me" token is rotated, every
- * other contact of the account that is still unverified is detached, and EVERY Sanctum token of
- * the account is revoked, so a stolen token does not survive the reset. The person signs in again
- * afterwards.
+ * EVERY Sanctum token of the account is revoked, so a stolen token does not survive the reset.
+ * The person signs in again afterwards.
  *
  * Anti-enumeration: every failure raises the same exception.
  *
@@ -39,14 +38,14 @@ final class ResetPassword
     public static function rules(): array
     {
         return [
-            'contact' => ['required', 'string', 'max:255', new ContactIdentifier],
+            'contact' => ['required', 'string', 'email:rfc', new AsciiEmail, 'max:255'],
             'code' => ['required', 'string', 'regex:/^\d{4,9}$/'],
             'password' => ['required', 'string', Password::defaults(), 'max:255'],
         ];
     }
 
     /**
-     * @param  string  $contact  Email address or phone number the code was sent to.
+     * @param  string  $contact  Email address the code was sent to.
      * @param  string  $code  The code as typed, digits only.
      * @param  string  $password  The new password, already validated against {@see self::rules()}.
      *
@@ -54,8 +53,8 @@ final class ResetPassword
      */
     public function handle(string $contact, string $code, string $password): void
     {
-        $normalized = ContactNormalizer::normalize($contact, (string) config('app.default_phone_country_code', '222'));
-        $channel = ContactType::detect($contact);
+        $normalized = ContactNormalizer::email($contact);
+        $channel = ContactType::Email;
 
         // The closure returns (never throws) so that the attempt counter is committed even when the code is wrong.
         $reset = $normalized !== null && DB::transaction(function () use ($normalized, $channel, $code, $password): bool {
@@ -72,12 +71,6 @@ final class ResetPassword
                 || ! $user->hasVerified($channel)
                 || $user->status !== UserStatus::Active) {
                 return false;
-            }
-
-            foreach (ContactType::cases() as $other) {
-                if ($other !== $channel && ! $user->hasVerified($other)) {
-                    $user->detachContact($other);
-                }
             }
 
             $user->forceFill([

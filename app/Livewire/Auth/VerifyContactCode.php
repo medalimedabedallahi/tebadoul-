@@ -13,8 +13,8 @@ use Illuminate\View\View;
 use Livewire\Component;
 
 /**
- * Verifies an email address or a phone number with the 6-digit code sent to it (registration, or
- * an account still pending verification at sign-in). Calls {@see VerifyContact} and
+ * Verifies an email address with the 6-digit code sent to it (registration, or an account still
+ * pending verification at sign-in). Calls {@see VerifyContact} and
  * {@see SendContactVerification} (resend) directly, per ADR 0002.
  */
 class VerifyContactCode extends Component

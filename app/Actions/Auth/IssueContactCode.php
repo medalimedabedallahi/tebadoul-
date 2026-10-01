@@ -14,7 +14,7 @@ use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Issues a one-time code for a normalized contact and queues its delivery (email or SMS).
+ * Issues a one-time code for a normalized email and queues its delivery.
  *
  * Runs in a worker ({@see ProcessContactCodeRequest}), never in the HTTP request: looking the
  * contact up and issuing a code take time only when the contact belongs to an account, and that
@@ -33,10 +33,14 @@ use Illuminate\Support\Facades\DB;
 final class IssueContactCode
 {
     /**
-     * @param  string  $contact  Normalized email or E.164 phone number.
+     * @param  string  $contact  Normalized email address.
      */
     public function handle(string $contact, ContactType $channel, ContactPurpose $purpose): void
     {
+        if ($channel !== ContactType::Email) {
+            return;
+        }
+
         $user = $this->eligibleUser($contact, $channel, $purpose);
 
         if ($user === null) {

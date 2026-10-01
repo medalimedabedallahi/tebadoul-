@@ -36,7 +36,7 @@ class ProcessContactCodeRequest implements ShouldBeEncrypted, ShouldQueue
     public int $timeout = 30;
 
     /**
-     * @param  string  $contact  Normalized email or E.164 phone number.
+     * @param  string  $contact  Normalized email address.
      */
     public function __construct(
         public readonly string $contact,

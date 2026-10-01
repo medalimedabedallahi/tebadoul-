@@ -9,7 +9,7 @@ use Illuminate\View\View;
 use Livewire\Component;
 
 /**
- * Account creation with an email, a phone number, or both.
+ * Account creation with a required email and an optional phone number.
  *
  * Calls {@see RegisterUser} directly (no internal HTTP call), per ADR 0002. The action itself
  * guarantees the anti-enumeration property (silent no-op for a contact already taken): this
@@ -52,7 +52,7 @@ class Register extends Component
         $this->applyNamedRateLimiter(
             'register',
             $this->authRateLimits()->register($validated['email'], $validated['phone'], (string) request()->ip()),
-            $validated['email'] !== null ? 'email' : 'phone',
+            'email',
             'auth.verification.throttled_send',
         );
 
@@ -65,7 +65,7 @@ class Register extends Component
         );
 
         session([
-            'pending_verification_contact' => $validated['email'] ?? $validated['phone'],
+            'pending_verification_contact' => $validated['email'],
         ]);
         session()->flash('status', __('auth.register.success'));
         session()->flash('status_type', 'success');

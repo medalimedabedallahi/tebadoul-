@@ -18,8 +18,8 @@ use Illuminate\Validation\Rules\Password;
 use InvalidArgumentException;
 
 /**
- * Creates an account identified by an email address, a phone number, or both, and requests the
- * verification code of each contact given.
+ * Creates an account identified by a required email address and an optional phone number, then
+ * requests the email verification code.
  *
  * The account starts as {@see UserStatus::PendingVerification}; {@see VerifyContact} activates it.
  * A pending account cannot sign in (see {@see AuthenticateCredentials}) and is deleted after
@@ -55,8 +55,8 @@ final class RegisterUser
     {
         return [
             'name' => ['required', 'string', 'max:120'],
-            'email' => ['nullable', 'required_without:phone', 'string', 'email:rfc', new AsciiEmail, 'max:255'],
-            'phone' => ['nullable', 'required_without:email', 'string', 'max:32', new PhoneNumber],
+            'email' => ['required', 'string', 'email:rfc', new AsciiEmail, 'max:255'],
+            'phone' => ['nullable', 'string', 'max:32', new PhoneNumber],
             'password' => ['required', 'string', Password::defaults(), 'max:255'],
             'locale' => ['nullable', 'string', Rule::in((array) config('app.supported_locales'))],
             'accept_terms' => ['accepted'],
@@ -66,19 +66,19 @@ final class RegisterUser
     public function __construct(private readonly SendContactVerification $sendVerification) {}
 
     /**
-     * @param  string|null  $email  Email address in any spelling; null when registering with a phone only.
+     * @param  string|null  $email  Required email address in any accepted spelling.
      * @param  string|null  $phone  Phone number, national or international; null when registering with an email only.
      * @param  string|null  $locale  `fr` or `ar`; the current application locale when null or unsupported.
      *
-     * @throws InvalidArgumentException When neither an email nor a phone number is given (validate with {@see self::rules()} first).
+     * @throws InvalidArgumentException When the email is absent (validate with {@see self::rules()} first).
      */
     public function handle(string $name, ?string $email, ?string $phone, string $password, ?string $locale = null): void
     {
         $email = ContactNormalizer::email($email);
         $phone = ContactNormalizer::phone($phone, (string) config('app.default_phone_country_code', '222'));
 
-        if ($email === null && $phone === null) {
-            throw new InvalidArgumentException('An email address or a phone number is required.');
+        if ($email === null) {
+            throw new InvalidArgumentException('An email address is required.');
         }
 
         $hashedPassword = Hash::make($password);
@@ -108,9 +108,7 @@ final class RegisterUser
                     'terms_version' => (string) config('legal.version'),
                 ])->save();
 
-                foreach (array_filter([$email, $phone]) as $contact) {
-                    $this->sendVerification->handle($contact, ContactPurpose::ContactVerification);
-                }
+                $this->sendVerification->handle($email, ContactPurpose::ContactVerification);
             });
         } catch (UniqueConstraintViolationException) {
             // A concurrent registration took the contact first: same silent outcome as above.

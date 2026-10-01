@@ -5,11 +5,11 @@ namespace App\Actions\Auth;
 use App\Enums\ContactPurpose;
 use App\Enums\ContactType;
 use App\Jobs\ProcessContactCodeRequest;
-use App\Rules\ContactIdentifier;
+use App\Rules\AsciiEmail;
 use App\Support\ContactNormalizer;
 
 /**
- * Requests a one-time code for a contact (contact verification or password reset).
+ * Requests a one-time code by email (contact verification or password reset).
  *
  * Anti-enumeration: the action returns nothing and does the SAME work whether or not the contact
  * belongs to an account: it normalizes the contact and queues a {@see ProcessContactCodeRequest}.
@@ -30,20 +30,20 @@ final class SendContactVerification
      */
     public static function rules(): array
     {
-        return ['contact' => ['required', 'string', 'max:255', new ContactIdentifier]];
+        return ['contact' => ['required', 'string', 'email:rfc', new AsciiEmail, 'max:255']];
     }
 
     /**
-     * @param  string  $contact  Email address or phone number, in any of the accepted spellings.
+     * @param  string  $contact  Email address in any accepted spelling.
      */
     public function handle(string $contact, ContactPurpose $purpose = ContactPurpose::ContactVerification): void
     {
-        $normalized = ContactNormalizer::normalize($contact, (string) config('app.default_phone_country_code', '222'));
+        $normalized = ContactNormalizer::email($contact);
 
         if ($normalized === null) {
             return;
         }
 
-        ProcessContactCodeRequest::dispatch($normalized, ContactType::detect($contact), $purpose);
+        ProcessContactCodeRequest::dispatch($normalized, ContactType::Email, $purpose);
     }
 }

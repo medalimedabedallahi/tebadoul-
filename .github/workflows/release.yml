@@ -182,13 +182,13 @@ jobs:
           chmod 600 ~/.ssh/id_deploy
           printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
 
-      - name: Copier compose.prod.yaml et ops/
+      - name: Copier les fichiers de production et ops/
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
           DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
         run: |
-          tar --create --gzip --file - compose.prod.yaml ops \
+          tar --create --gzip --file - compose.prod.yaml compose.hostinger.yaml .env.hostinger.example ops \
             | ssh -i ~/.ssh/id_deploy -o StrictHostKeyChecking=yes "${DEPLOY_USER}@${DEPLOY_HOST}" \
                 "mkdir -p '${DEPLOY_PATH}' && tar --extract --gzip --file - --directory '${DEPLOY_PATH}' && chmod +x '${DEPLOY_PATH}'/ops/*.sh"
 
@@ -213,7 +213,7 @@ jobs:
           DEPLOY_TAG: ${{ needs.publish.outputs.tag }}
         run: |
           ssh -i ~/.ssh/id_deploy -o StrictHostKeyChecking=yes "${DEPLOY_USER}@${DEPLOY_HOST}" \
-            "cd '${DEPLOY_PATH}' && BADAL_IMAGE='${BADAL_IMAGE}' BADAL_NGINX_IMAGE='${BADAL_NGINX_IMAGE}' ./ops/deploy.sh --yes '${DEPLOY_TAG}'"
+            "cd '${DEPLOY_PATH}' && BADAL_IMAGE='${BADAL_IMAGE}' BADAL_NGINX_IMAGE='${BADAL_NGINX_IMAGE}' ./ops/deploy-hostinger.sh --yes '${DEPLOY_TAG}'"
 
       - name: Deconnexion de GHCR sur le serveur
         if: ${{ always() }}

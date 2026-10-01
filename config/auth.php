@@ -124,7 +124,7 @@ return [
     | One-Time Codes (contact verification and password reset)
     |--------------------------------------------------------------------------
     |
-    | Numeric codes sent by email or SMS. Only a keyed hash of the code is stored.
+    | Numeric codes sent by email. Only a keyed hash of the code is stored.
     |
     | - code_length: number of digits (4 to 9).
     | - ttl_minutes: minutes during which a code can be used.

@@ -1,0 +1,68 @@
+# Extension de compose.prod.yaml pour un VPS Hostinger mono-hote.
+#
+# Usage :
+#   docker compose --env-file .env.production \
+#     -f compose.prod.yaml -f compose.hostinger.yaml config -q
+#
+# PostgreSQL reste uniquement sur le reseau Docker prive. Pour une base geree
+# externe, ne pas utiliser ce fichier et conserver la configuration production
+# standard.
+
+services:
+  postgres:
+    image: postgres:17-alpine@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24
+    restart: unless-stopped
+    init: true
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      POSTGRES_DB: "${DB_DATABASE:-badal}"
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_admin_password
+      BADAL_DB_USERNAME: "${DB_USERNAME:-badal_app}"
+    secrets:
+      - db_password
+      - postgres_admin_password
+    volumes:
+      - badal-postgres:/var/lib/postgresql/data
+      - ./ops/postgres/init-app.sh:/docker-entrypoint-initdb.d/10-badal-app.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks:
+      - badal
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  app:
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  worker:
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  scheduler:
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  migrate:
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  badal-postgres:
+
+secrets:
+  postgres_admin_password:
+    file: "${BADAL_SECRETS_DIR:-/etc/badal/secrets}/postgres_admin_password"

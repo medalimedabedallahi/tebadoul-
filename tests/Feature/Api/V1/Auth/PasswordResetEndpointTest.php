@@ -6,7 +6,6 @@ use App\Jobs\SendContactCode;
 use App\Models\ContactVerification;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Queue;
 use Tests\Support\InteractsWithContactCodes;
 use Tests\TestCase;
@@ -26,15 +25,14 @@ class PasswordResetEndpointTest extends TestCase
     {
         $this->captureContactCodes();
         User::factory()->create(['email' => 'a@example.com']);
-        User::factory()->phoneVerified()->create(['email' => null, 'phone' => '+22241111111']);
         User::factory()->unverified()->create(['email' => 'unverified@example.com']);
 
-        $answers = collect(['a@example.com', '41 11 11 11', 'ghost@example.com', '+22249999999', 'unverified@example.com'])
+        $answers = collect(['a@example.com', 'ghost@example.com', 'unverified@example.com'])
             ->map(fn (string $contact): array => collect($this->postJson(self::FORGOT_URL, ['contact' => $contact])->assertAccepted()->json())->except('request_id')->all());
 
         $this->assertCount(1, $answers->unique());
         $this->assertSame(['data' => ['message' => __('If the contact belongs to an account, a password reset code has been sent.')]], $answers->first());
-        Queue::assertPushed(SendContactCode::class, 2);
+        Queue::assertPushed(SendContactCode::class, 1);
     }
 
     public function test_forgot_rejects_a_malformed_contact(): void
@@ -42,23 +40,14 @@ class PasswordResetEndpointTest extends TestCase
         $this->postJson(self::FORGOT_URL, ['contact' => 'nonsense'])->assertUnprocessable()->assertJsonValidationErrors(['contact']);
     }
 
-    public function test_full_flow_reset_by_phone_only_then_old_password_and_tokens_are_dead(): void
+    public function test_phone_is_rejected_for_password_reset(): void
     {
-        $this->captureContactCodes();
-        $user = User::factory()->phoneVerified()->create(['email' => null, 'phone' => '+22241111111', 'password' => self::PASSWORD]);
-        $oldToken = $user->createToken('phone')->plainTextToken;
-
-        $this->postJson(self::FORGOT_URL, ['contact' => '41111111'])->assertAccepted();
-        $this->postJson(self::RESET_URL, ['contact' => '+22241111111', 'code' => $this->lastCode(), 'password' => self::NEW_PASSWORD])
-            ->assertOk()
-            ->assertExactJson(['data' => ['reset' => true]]);
-
-        $this->assertTrue(Hash::check(self::NEW_PASSWORD, $user->fresh()->password));
-        $this->assertSame(0, $user->tokens()->count());
-        $this->forgetResolvedUser();
-        $this->withToken($oldToken)->getJson('/api/v1/auth/me')->assertUnauthorized();
-        $this->postJson('/api/v1/auth/login', ['identifier' => '41111111', 'password' => self::PASSWORD])->assertUnauthorized();
-        $this->postJson('/api/v1/auth/login', ['identifier' => '41111111', 'password' => self::NEW_PASSWORD])->assertOk();
+        $this->postJson(self::FORGOT_URL, ['contact' => '41111111'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['contact']);
+        $this->postJson(self::RESET_URL, ['contact' => '+22241111111', 'code' => '123456', 'password' => self::NEW_PASSWORD])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['contact']);
     }
 
     public function test_reset_answers_422_for_a_wrong_expired_or_unknown_code_with_the_same_body(): void

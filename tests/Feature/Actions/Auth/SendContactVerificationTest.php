@@ -54,15 +54,15 @@ class SendContactVerificationTest extends TestCase
         $this->assertStringNotContainsString('a@example.com', serialize($job));
     }
 
-    public function test_sends_to_a_phone_only_account(): void
+    public function test_does_not_send_to_a_phone_only_account(): void
     {
         $this->captureContactCodes();
         User::factory()->create(['email' => null, 'phone' => '+22241111111', 'phone_verified_at' => null]);
 
         app(SendContactVerification::class)->handle('41 11 11 11');
 
-        $verification = $this->activeVerification('+22241111111');
-        $this->assertSame(ContactType::Phone, $verification->channel);
+        $this->assertSame(0, ContactVerification::query()->count());
+        Queue::assertNothingPushed();
     }
 
     public function test_a_new_code_supersedes_the_previous_one(): void
@@ -135,10 +135,10 @@ class SendContactVerificationTest extends TestCase
         }
     }
 
-    public function test_rules_require_an_email_or_a_phone(): void
+    public function test_rules_require_an_email(): void
     {
         $this->assertTrue(Validator::make(['contact' => 'a@example.com'], SendContactVerification::rules())->passes());
-        $this->assertTrue(Validator::make(['contact' => '41 11 11 11'], SendContactVerification::rules())->passes());
+        $this->assertTrue(Validator::make(['contact' => '41 11 11 11'], SendContactVerification::rules())->fails());
         $this->assertTrue(Validator::make(['contact' => 'nonsense'], SendContactVerification::rules())->fails());
         $this->assertTrue(Validator::make([], SendContactVerification::rules())->fails());
     }

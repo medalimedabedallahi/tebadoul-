@@ -25,17 +25,15 @@ class ResetPasswordTest extends TestCase
 
     private const NEW_PASSWORD = 'Brand-new-passphrase-77';
 
-    public function test_resets_the_password_of_a_phone_only_account_with_the_code_received(): void
+    public function test_does_not_issue_a_reset_code_to_a_phone_only_account(): void
     {
         $this->captureContactCodes();
-        $user = User::factory()->phoneVerified()->create(['email' => null, 'phone' => '+22241111111', 'password' => self::PASSWORD]);
+        User::factory()->phoneVerified()->create(['email' => null, 'phone' => '+22241111111', 'password' => self::PASSWORD]);
 
         app(RequestPasswordReset::class)->handle('41 11 11 11');
-        app(ResetPassword::class)->handle('+222 41111111', $this->lastCode(), self::NEW_PASSWORD);
 
-        $user->refresh();
-        $this->assertTrue(Hash::check(self::NEW_PASSWORD, $user->password));
-        $this->assertFalse(Hash::check(self::PASSWORD, $user->password));
+        Queue::assertNothingPushed();
+        $this->assertSame(0, ContactVerification::query()->count());
     }
 
     public function test_resets_the_password_of_an_email_account(): void
@@ -190,7 +188,7 @@ class ResetPasswordTest extends TestCase
         }
     }
 
-    public function test_a_reset_detaches_the_other_unverified_contacts_of_the_account(): void
+    public function test_a_reset_keeps_the_optional_phone_number(): void
     {
         $user = User::factory()->create(['email' => 'a@example.com', 'phone' => '+22241111111', 'phone_verified_at' => null]);
         ContactVerification::factory()->for($user)->forPhone('+22241111111')->create();
@@ -200,8 +198,8 @@ class ResetPasswordTest extends TestCase
 
         $user->refresh();
         $this->assertSame('a@example.com', $user->email);
-        $this->assertNull($user->phone);
-        $this->assertSame(0, ContactVerification::query()->unconsumed()->count());
+        $this->assertSame('+22241111111', $user->phone);
+        $this->assertSame(1, ContactVerification::query()->unconsumed()->count());
     }
 
     public function test_rules_enforce_the_password_policy_and_the_code_format(): void

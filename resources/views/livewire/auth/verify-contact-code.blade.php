@@ -28,9 +28,11 @@
         <form wire:submit="verify" wire:loading.attr="aria-busy" wire:target="verify" class="flex flex-col gap-5" novalidate>
             <x-input
                 name="contact"
+                type="email"
                 label="{{ __('auth.verification.contact_label') }}"
                 wire:model="contact"
-                autocomplete="username"
+                autocomplete="email"
+                inputmode="email"
                 dir="ltr"
                 required
             />

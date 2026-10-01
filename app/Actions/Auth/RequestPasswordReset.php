@@ -5,8 +5,7 @@ namespace App\Actions\Auth;
 use App\Enums\ContactPurpose;
 
 /**
- * Sends a password reset code to the email address or phone number of an account. Works for an
- * account that only has a phone number.
+ * Sends a password reset code to the email address of an account.
  *
  * Anti-enumeration: returns nothing and behaves the same whether or not the contact belongs to an
  * account (see {@see SendContactVerification}: the lookup happens in a worker). A code is only
@@ -29,7 +28,7 @@ final class RequestPasswordReset
     }
 
     /**
-     * @param  string  $contact  Email address or phone number, in any of the accepted spellings.
+     * @param  string  $contact  Email address in any accepted spelling.
      */
     public function handle(string $contact): void
     {

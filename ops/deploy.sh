@@ -72,6 +72,13 @@ log "deploiement du tag ${tag} (precedent : ${previous_tag:-aucun})"
 dc config -q
 dc pull --quiet app nginx
 
+# Une extension mono-hote (par exemple compose.hostinger.yaml) peut fournir PostgreSQL.
+# Il doit etre sain avant les migrations et la sauvegarde du premier deploiement.
+if dc config --services | grep -qx postgres; then
+    log "demarrage de PostgreSQL local"
+    dc up -d --wait --wait-timeout 120 postgres
+fi
+
 log "migrations en attente :"
 dc run --rm --no-deps -T migrate php artisan migrate:status --pending --no-interaction || log "impossible de lister les migrations en attente"
 

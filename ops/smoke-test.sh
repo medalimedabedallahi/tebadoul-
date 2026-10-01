@@ -62,11 +62,10 @@ http_status() {
 app_key="base64:$(head -c 32 /dev/urandom | base64 | tr -d '\r\n')"
 
 # Configuration minimale qui passe les garde-fous de demarrage de production (AppServiceProvider : APP_DEBUG,
-# SMS_DRIVER, MAIL_MAILER). Chaque controle negatif ne change qu'UNE variable par rapport a elle : il echoue
+# MAIL_MAILER). Chaque controle negatif ne change qu'UNE variable par rapport a elle : il echoue
 # ainsi pour la raison qu'il annonce, et non parce qu'un autre garde-fou refuse deja le demarrage.
 valid_env=(
     -e APP_KEY="$app_key" -e APP_DEBUG=false
-    -e SMS_DRIVER=log -e SMS_ALLOW_LOG_DRIVER=true
     -e MAIL_MAILER=smtp -e MAIL_HOST=mail.invalid
 )
 
@@ -84,7 +83,6 @@ check "demarrage OK avec une configuration valide" \
     docker run --rm "${valid_env[@]}" "$app_image" php artisan --version
 check "demarrage refuse avec APP_DEBUG=true" refuses_to_boot -e APP_DEBUG=true
 check "demarrage refuse sans APP_KEY" refuses_to_boot -e APP_KEY=
-check "demarrage refuse avec SMS_DRIVER=log sans derogation" refuses_to_boot -e SMS_ALLOW_LOG_DRIVER=false
 check "demarrage refuse avec MAIL_MAILER=log" refuses_to_boot -e MAIL_MAILER=log
 
 # --- Pile applicative ---

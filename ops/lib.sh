@@ -110,8 +110,14 @@ BADAL_ENV_FILE="${BADAL_ENV_FILE:-$ROOT_DIR/.env.production}"
 BADAL_STATE_DIR="${BADAL_STATE_DIR:-$ROOT_DIR/.deploy-state}"
 export BADAL_ENV_FILE
 
+read -r -a DEPLOY_COMPOSE_FILES <<<"$COMPOSE_FILE"
+DEPLOY_COMPOSE_ARGS=()
+for compose_file in "${DEPLOY_COMPOSE_FILES[@]}"; do
+    DEPLOY_COMPOSE_ARGS+=( -f "$compose_file" )
+done
+
 dc() {
-    docker compose --env-file "$BADAL_ENV_FILE" -f "$COMPOSE_FILE" "$@"
+    docker compose --env-file "$BADAL_ENV_FILE" "${DEPLOY_COMPOSE_ARGS[@]}" "$@"
 }
 
 # Valeur non secrete d'une variable de l'env-file (APP_PORT, APP_BIND_ADDRESS...). Ne jamais l'utiliser pour un secret.

@@ -33,17 +33,19 @@ class VerifyContactTest extends TestCase
         $this->assertNotNull(ContactVerification::query()->sole()->consumed_at);
     }
 
-    public function test_verifies_a_phone_number_of_a_phone_only_account(): void
+    public function test_refuses_to_verify_a_phone_number(): void
     {
         $user = User::factory()->create(['email' => null, 'phone' => '+22241111111', 'email_verified_at' => null, 'status' => UserStatus::PendingVerification]);
         ContactVerification::factory()->for($user)->forPhone('+22241111111')->create();
 
-        app(VerifyContact::class)->handle('41 11 11 11', '123456');
-
-        $user->refresh();
-        $this->assertNotNull($user->phone_verified_at);
-        $this->assertNull($user->email_verified_at);
-        $this->assertSame(UserStatus::Active, $user->status);
+        try {
+            app(VerifyContact::class)->handle('41 11 11 11', '123456');
+            $this->fail('A phone verification code must be refused.');
+        } catch (InvalidVerificationCodeException) {
+            $user->refresh();
+            $this->assertNull($user->phone_verified_at);
+            $this->assertSame(UserStatus::PendingVerification, $user->status);
+        }
     }
 
     public function test_a_suspended_account_stays_suspended(): void

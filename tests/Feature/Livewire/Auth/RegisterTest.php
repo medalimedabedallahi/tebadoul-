@@ -40,7 +40,7 @@ class RegisterTest extends TestCase
         $this->assertSame('aminetou@example.com', session('pending_verification_contact'));
     }
 
-    public function test_registers_with_a_phone_only(): void
+    public function test_rejects_registration_with_a_phone_only(): void
     {
         Livewire::test(Register::class)
             ->set('name', 'Sidi Ahmed')
@@ -49,13 +49,12 @@ class RegisterTest extends TestCase
             ->set('password_confirmation', self::PASSWORD)
             ->set('accept_terms', true)
             ->call('register')
-            ->assertHasNoErrors()
-            ->assertRedirect(route('verification.show'));
+            ->assertHasErrors(['email']);
 
-        $this->assertSame(1, User::query()->count());
+        $this->assertSame(0, User::query()->count());
     }
 
-    public function test_requires_at_least_one_contact(): void
+    public function test_requires_an_email(): void
     {
         Livewire::test(Register::class)
             ->set('name', 'Sans Contact')
@@ -63,7 +62,7 @@ class RegisterTest extends TestCase
             ->set('password_confirmation', self::PASSWORD)
             ->set('accept_terms', true)
             ->call('register')
-            ->assertHasErrors(['email', 'phone']);
+            ->assertHasErrors(['email']);
 
         $this->assertSame(0, User::query()->count());
     }

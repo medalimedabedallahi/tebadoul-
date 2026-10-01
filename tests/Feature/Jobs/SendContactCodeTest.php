@@ -3,8 +3,8 @@
 namespace Tests\Feature\Jobs;
 
 use App\Contracts\ContactCodeSender;
-use App\Contracts\SmsGateway;
 use App\Enums\ContactPurpose;
+use App\Exceptions\RedactedJobException;
 use App\Jobs\SendContactCode;
 use App\Models\ContactVerification;
 use App\Models\User;
@@ -15,7 +15,6 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
 use RuntimeException;
-use Tests\Support\RecordingSmsGateway;
 use Tests\TestCase;
 
 class SendContactCodeTest extends TestCase
@@ -49,21 +48,6 @@ class SendContactCodeTest extends TestCase
             fn (ContactCodeNotification $notification, array $channels, object $notifiable): bool => $notifiable->routes['mail'] === 'a@example.com',
         );
         $this->assertNotNull($verification->fresh()->last_sent_at);
-    }
-
-    public function test_sends_the_sms_once_when_the_job_runs_twice(): void
-    {
-        $gateway = new RecordingSmsGateway;
-        $this->app->instance(SmsGateway::class, $gateway);
-        $verification = ContactVerification::factory()->forPhone('+22241111111')->create();
-
-        $job = new SendContactCode($verification->getKey(), '654321');
-        $job->handle(app(ContactCodeSender::class));
-        $job->handle(app(ContactCodeSender::class));
-
-        $this->assertCount(1, $gateway->sent);
-        $this->assertSame('+22241111111', $gateway->sent[0]['to']);
-        $this->assertSame('654321', $gateway->lastCode());
     }
 
     public function test_two_jobs_for_the_same_verification_send_one_message(): void
@@ -108,29 +92,27 @@ class SendContactCodeTest extends TestCase
 
     public function test_a_failed_delivery_releases_the_claim_so_that_the_retry_sends(): void
     {
-        $verification = ContactVerification::factory()->forPhone('+22241111111')->create();
-        $failing = new class implements SmsGateway
+        Notification::fake();
+        $verification = ContactVerification::factory()->create(['contact' => 'a@example.com']);
+        $failing = new class implements ContactCodeSender
         {
-            public function send(string $to, string $message): void
+            public function send(ContactVerification $verification, string $code): void
             {
                 throw new RuntimeException('provider down');
             }
         };
-        $this->app->instance(SmsGateway::class, $failing);
         $job = new SendContactCode($verification->getKey(), '123456');
 
         try {
-            $job->handle(app(ContactCodeSender::class));
+            $job->handle($failing);
             $this->fail('The failure must reach the queue so that it retries.');
-        } catch (RuntimeException) {
+        } catch (RedactedJobException) {
             $this->assertNull($verification->fresh()->last_sent_at);
         }
 
-        $gateway = new RecordingSmsGateway;
-        $this->app->instance(SmsGateway::class, $gateway);
         $job->handle(app(ContactCodeSender::class));
 
-        $this->assertCount(1, $gateway->sent);
+        Notification::assertSentOnDemandTimes(ContactCodeNotification::class, 1);
     }
 
     public function test_dispatching_pushes_the_job_with_its_verification_and_code(): void

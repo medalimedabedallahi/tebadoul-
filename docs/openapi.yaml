@@ -2368,13 +2368,15 @@ components:
     RegisterRequest:
       type: object
       description: >-
-        `email` ou `phone` doit etre fourni (les deux sont acceptes). Le mot de passe suit la
+        `email` est obligatoire et `phone` est facultatif. Le code de verification est envoye
+        uniquement par courriel. Le mot de passe suit la
         politique de mot de passe (12 caracteres minimum ; controle de fuite de donnees en
         production). `accept_terms` doit valoir `true` : l'acceptation des conditions d'utilisation
         (`/conditions-utilisation`) et de la politique de confidentialite (`/confidentialite`) est
         enregistree avec sa date et la version des textes.
       required:
         - name
+        - email
         - password
         - accept_terms
       properties:
@@ -2435,8 +2437,9 @@ components:
       properties:
         contact:
           type: string
+          format: email
           maxLength: 255
-          description: Adresse courriel ou numero de telephone.
+          description: Adresse courriel destinataire du code.
       example:
         contact: aminetou@example.com
     VerifyContactRequest:
@@ -2447,6 +2450,7 @@ components:
       properties:
         contact:
           type: string
+          format: email
           maxLength: 255
         code:
           type: string
@@ -2463,6 +2467,7 @@ components:
       properties:
         contact:
           type: string
+          format: email
           maxLength: 255
         code:
           type: string

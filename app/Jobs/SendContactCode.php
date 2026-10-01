@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Log;
 use Throwable;
 
 /**
- * Delivers a one-time code to its contact (email or SMS).
+ * Delivers a one-time code to its email destination.
  *
  * The clear code has to travel to the worker, so the payload is encrypted ({@see ShouldBeEncrypted})
  * and the job is dispatched only once the transaction that stored the hash has committed.

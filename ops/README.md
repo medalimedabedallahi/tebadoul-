@@ -24,14 +24,14 @@ Sur le serveur : `chmod +x ops/*.sh`.
 ```bash
 # 1. Secrets : dossier 0700, fichiers 0444 (lisibles par l'utilisateur www-data du conteneur), valeurs hex sans espace.
 sudo install -d -m 700 /etc/badal/secrets && cd /etc/badal/secrets
-for name in db_password redis_queue_password redis_cache_password; do openssl rand -hex 32 | sudo tee "$name" >/dev/null; done
+for name in db_password postgres_admin_password redis_queue_password redis_cache_password; do openssl rand -hex 32 | sudo tee "$name" >/dev/null; done
 docker run --rm --entrypoint php <image>:<tag> artisan key:generate --show | sudo tee app_key >/dev/null   # base64:...
 # db_password doit aussi etre defini comme mot de passe du role applicatif cote PostgreSQL.
 sudo touch mail_password aws_secret_access_key      # puis y ecrire les valeurs reelles (vide accepte si non utilise)
 sudo chmod 444 *
 
 # 2. Configuration non secrete : copier .env.production.example en .env.production et l'adapter
-#    (APP_URL, DB_HOST, TRUSTED_PROXIES = BADAL_NGINX_IP, SMS_DRIVER, S3, SMTP...). Ne jamais y mettre de secret.
+#    (APP_URL, DB_HOST, TRUSTED_PROXIES = BADAL_NGINX_IP, S3, SMTP...). Ne jamais y mettre de secret.
 # 3. docker login ghcr.io (jeton en lecture seule) ; le frontal TLS pointe vers 127.0.0.1:8080.
 # 4. Premier deploiement (voir plus bas).
 ```
@@ -39,6 +39,59 @@ sudo chmod 444 *
 Chaque valeur de secret doit rester hexadecimale/base64 sans espace ni guillemet (elle est inseree dans une config Redis).
 La base PostgreSQL doit avoir un role applicatif dedie (`DB_USERNAME`) et un role de sauvegarde ayant `CONNECT` et `SELECT`
 (+ `CREATEDB` pour les tests de restauration).
+
+## Deploiement sur un VPS Hostinger
+
+L'hebergement Web/Cloud mutualise n'est pas une cible compatible : Badal requiert PHP 8.5, PostgreSQL, Redis, un worker
+de file et un scheduler permanents. Utiliser un **VPS Hostinger avec le modele Ubuntu 24.04 + Docker**, idealement avec
+au moins 4 Go de RAM. Le fichier `compose.hostinger.yaml` ajoute un PostgreSQL 17 persistant et prive a la pile de
+production existante. Avec une base PostgreSQL geree externe, ne pas utiliser cet override.
+
+Prerequis a regler dans hPanel avant le premier deploiement :
+
+1. Pointer les enregistrements DNS `A` (et `AAAA` seulement si IPv6 est configure) vers le VPS.
+2. Autoriser uniquement SSH, HTTP et HTTPS dans le pare-feu Hostinger ; ne jamais ouvrir PostgreSQL ou Redis.
+3. Installer un frontal TLS sur l'hote (Caddy, Traefik ou Nginx) qui ecoute sur 80/443 et transmet vers
+   `127.0.0.1:8080`, en ecrasant les en-tetes `X-Forwarded-*` recus du client.
+4. Activer les sauvegardes quotidiennes Hostinger. Elles completent, mais ne remplacent pas, les dumps PostgreSQL
+   chiffres et copies hors du VPS.
+
+Sur le VPS :
+
+```bash
+sudo install -d -m 755 /opt/badal
+sudo install -d -m 700 /etc/badal/secrets
+cd /opt/badal
+
+# Fichiers livres par GitHub Actions : compose.prod.yaml, compose.hostinger.yaml et ops/.
+cp .env.hostinger.example .env.production
+# Adapter domaine, images GHCR et SMTP, puis creer les secrets comme indique plus haut.
+
+# deploy-hostinger.sh positionne automatiquement COMPOSE_FILE, PG_MODE,
+# BADAL_COMPOSE_ARGS, PG_SERVICE, PGUSER et PGDATABASE.
+```
+
+Les scripts acceptent plusieurs fichiers Compose separes par des espaces dans `COMPOSE_FILE`. Le wrapper Hostinger
+transmet cette configuration aux sauvegardes et restaurations lancees pendant le deploiement. Configurer aussi le
+chiffrement et le stockage hors site :
+
+```bash
+export BACKUP_DIR=/var/backups/badal
+export BACKUP_AGE_RECIPIENTS_FILE=/etc/badal/backup-recipients.txt
+ops/deploy-hostinger.sh sha-<commit>
+```
+
+Apres le premier deploiement :
+
+```bash
+curl --fail https://votre-domaine.example/up
+docker compose --env-file .env.production -f compose.prod.yaml -f compose.hostinger.yaml ps
+PG_MODE=compose BADAL_COMPOSE_ARGS="--env-file .env.production -f compose.prod.yaml -f compose.hostinger.yaml" ops/verify-restore.sh
+```
+
+Configurer les secrets GitHub de l'environnement `production` (`DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`,
+`DEPLOY_KNOWN_HOSTS`) et la variable `DEPLOY_PATH=/opt/badal`. Le compte de deploiement doit pouvoir utiliser Docker
+et ecrire dans `/opt/badal`, sans connexion SSH par mot de passe.
 
 ## Deployer, revenir en arriere
 

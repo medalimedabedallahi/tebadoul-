@@ -9,7 +9,7 @@ use Illuminate\View\View;
 use Livewire\Component;
 
 /**
- * Requests a password reset code for an email address or a phone number.
+ * Requests a password reset code for an email address.
  *
  * Calls {@see RequestPasswordReset} directly (no internal HTTP call), per ADR 0002. The action
  * guarantees the anti-enumeration property (silent no-op for an unknown contact): this component

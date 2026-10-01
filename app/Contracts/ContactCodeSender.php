@@ -10,8 +10,8 @@ use App\Models\ContactVerification;
 interface ContactCodeSender
 {
     /**
-     * Send `$code` to `$verification->contact` through the channel of the verification (email or
-     * SMS). Throws when the delivery fails, so that the queued job can retry.
+     * Send `$code` to the verified email destination. Throws when delivery fails, so that the
+     * queued job can retry.
      */
     public function send(ContactVerification $verification, string $code): void;
 }

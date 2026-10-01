@@ -2,8 +2,6 @@
 
 namespace Tests\Feature\Providers;
 
-use App\Exceptions\InvalidConfigurationException;
-use App\Providers\AppServiceProvider;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rules\Password;
@@ -11,46 +9,6 @@ use Tests\TestCase;
 
 class AuthConfigurationTest extends TestCase
 {
-    public function test_refuses_to_boot_with_an_unknown_sms_driver(): void
-    {
-        config(['services.sms.driver' => 'twilio']);
-
-        $this->expectException(InvalidConfigurationException::class);
-        $this->expectExceptionMessage('SMS_DRIVER must be one of [log, null]');
-
-        (new AppServiceProvider($this->app))->boot();
-    }
-
-    public function test_refuses_to_boot_in_production_with_an_unknown_sms_driver(): void
-    {
-        $this->app->detectEnvironment(fn (): string => 'production');
-        config(['app.debug' => false, 'mail.default' => 'smtp', 'services.sms.driver' => 'not-configured']);
-
-        $this->expectException(InvalidConfigurationException::class);
-
-        (new AppServiceProvider($this->app))->boot();
-    }
-
-    public function test_refuses_to_boot_without_an_sms_driver(): void
-    {
-        config(['services.sms.driver' => null]);
-
-        $this->expectException(InvalidConfigurationException::class);
-
-        (new AppServiceProvider($this->app))->boot();
-    }
-
-    public function test_boots_with_each_known_sms_driver(): void
-    {
-        foreach (['log', 'null'] as $driver) {
-            config(['services.sms.driver' => $driver]);
-
-            (new AppServiceProvider($this->app))->boot();
-        }
-
-        $this->addToAssertionCount(1);
-    }
-
     public function test_the_default_password_policy_requires_twelve_characters_without_network_access(): void
     {
         Http::preventStrayRequests();

@@ -55,14 +55,13 @@ class RegisterEndpointTest extends TestCase
         $this->assertSame(0, User::query()->count());
     }
 
-    public function test_registers_with_a_phone_only(): void
+    public function test_rejects_registration_with_a_phone_only(): void
     {
-        $this->captureContactCodes();
+        $this->postJson(self::URL, ['name' => 'Moctar', 'phone' => '41 11 11 11', 'password' => self::PASSWORD, 'accept_terms' => true])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['email']);
 
-        $this->postJson(self::URL, ['name' => 'Moctar', 'phone' => '41 11 11 11', 'password' => self::PASSWORD, 'accept_terms' => true])->assertAccepted();
-
-        $this->assertSame('+22241111111', User::query()->sole()->phone);
-        Queue::assertPushed(SendContactCode::class, 1);
+        $this->assertSame(0, User::query()->count());
     }
 
     public function test_an_already_registered_contact_gets_the_identical_response_and_nothing_changes(): void

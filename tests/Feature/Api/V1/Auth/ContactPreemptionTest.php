@@ -68,7 +68,7 @@ class ContactPreemptionTest extends TestCase
             ->assertUnauthorized();
     }
 
-    public function test_v3_verifying_the_attackers_own_contact_drops_the_victims_unverified_one(): void
+    public function test_email_verification_keeps_the_optional_phone_without_verifying_it(): void
     {
         $this->captureContactCodes();
 
@@ -85,8 +85,9 @@ class ContactPreemptionTest extends TestCase
             ->assertOk();
 
         $attacker = User::query()->where('email', 'attaquant@example.com')->sole();
-        $this->assertNull($attacker->phone);
+        $this->assertSame('+22241111111', $attacker->phone);
+        $this->assertNull($attacker->phone_verified_at);
         $this->assertNull($this->activeVerification('+22241111111'));
-        $this->assertSame(0, User::query()->where('phone', '+22241111111')->count());
+        $this->assertSame(1, User::query()->where('phone', '+22241111111')->count());
     }
 }

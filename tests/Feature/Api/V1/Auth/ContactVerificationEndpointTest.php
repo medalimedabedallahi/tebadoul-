@@ -57,7 +57,7 @@ class ContactVerificationEndpointTest extends TestCase
         User::factory()->unverified()->create(['email' => 'pending@example.com']);
         User::factory()->create(['email' => 'verified@example.com']);
 
-        $answers = collect(['pending@example.com', 'verified@example.com', 'ghost@example.com', '+22249999999'])
+        $answers = collect(['pending@example.com', 'verified@example.com', 'ghost@example.com'])
             ->map(fn (string $contact): array => collect($this->postJson(self::SEND_URL, ['contact' => $contact])->assertAccepted()->json())->except('request_id')->all());
 
         $this->assertCount(1, $answers->unique());
@@ -67,6 +67,7 @@ class ContactVerificationEndpointTest extends TestCase
     public function test_send_rejects_a_malformed_contact(): void
     {
         $this->postJson(self::SEND_URL, ['contact' => 'nonsense'])->assertUnprocessable()->assertJsonValidationErrors(['contact']);
+        $this->postJson(self::SEND_URL, ['contact' => '+22249999999'])->assertUnprocessable()->assertJsonValidationErrors(['contact']);
         $this->postJson(self::SEND_URL, [])->assertUnprocessable()->assertJsonValidationErrors(['contact']);
     }
 
@@ -112,11 +113,13 @@ class ContactVerificationEndpointTest extends TestCase
     {
         $this->captureContactCodes();
 
-        $this->postJson('/api/v1/auth/register', ['accept_terms' => true, 'name' => 'Moctar', 'phone' => '41 11 11 11', 'password' => self::PASSWORD])->assertAccepted();
-        $this->postJson(self::VERIFY_URL, ['contact' => '+22241111111', 'code' => $this->lastCode()])->assertOk();
+        $this->postJson('/api/v1/auth/register', ['accept_terms' => true, 'name' => 'Moctar', 'email' => 'moctar@example.com', 'phone' => '41 11 11 11', 'password' => self::PASSWORD])->assertAccepted();
+        $this->postJson(self::VERIFY_URL, ['contact' => 'moctar@example.com', 'code' => $this->lastCode()])->assertOk();
 
-        $this->postJson('/api/v1/auth/login', ['identifier' => '41111111', 'password' => self::PASSWORD])
+        $this->postJson('/api/v1/auth/login', ['identifier' => 'moctar@example.com', 'password' => self::PASSWORD])
             ->assertOk()
             ->assertJsonPath('data.abilities', ['access-api']);
+
+        $this->assertSame('+22241111111', User::query()->sole()->phone);
     }
 }

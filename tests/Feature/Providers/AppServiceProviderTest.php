@@ -11,15 +11,13 @@ use Tests\TestCase;
 class AppServiceProviderTest extends TestCase
 {
     /**
-     * A configuration that is safe to expose: no debug, real mail and SMS delivery.
+     * A configuration that is safe to expose: no debug and real mail delivery.
      *
      * @var array<string, mixed>
      */
     private const SAFE = [
         'app.debug' => false,
         'mail.default' => 'smtp',
-        'services.sms.driver' => 'null',
-        'services.sms.allow_log_driver' => false,
     ];
 
     /**
@@ -39,7 +37,6 @@ class AppServiceProviderTest extends TestCase
 
         foreach (['production', 'staging'] as $environment) {
             $cases["$environment, debug enabled"] = [$environment, ['app.debug' => true], 'APP_DEBUG must be false'];
-            $cases["$environment, SMS log driver without override"] = [$environment, ['services.sms.driver' => 'log'], 'SMS_DRIVER=log'];
             $cases["$environment, log mailer"] = [$environment, ['mail.default' => 'log'], 'MAIL_MAILER must not be'];
             $cases["$environment, array mailer"] = [$environment, ['mail.default' => 'array'], 'MAIL_MAILER must not be'];
         }
@@ -73,20 +70,10 @@ class AppServiceProviderTest extends TestCase
         $this->assertNotNull(RateLimiter::limiter('login'));
     }
 
-    public function test_the_sms_log_driver_is_allowed_in_staging_with_the_explicit_override(): void
-    {
-        $this->app->detectEnvironment(fn (): string => 'staging');
-        config([...self::SAFE, 'services.sms.driver' => 'log', 'services.sms.allow_log_driver' => true]);
-
-        (new AppServiceProvider($this->app))->boot();
-
-        $this->assertNotNull(RateLimiter::limiter('otp-send'));
-    }
-
     public function test_allows_debug_and_non_delivering_drivers_outside_exposed_environments(): void
     {
         $this->app->detectEnvironment(fn (): string => 'local');
-        config(['app.debug' => true, 'mail.default' => 'log', 'services.sms.driver' => 'log']);
+        config(['app.debug' => true, 'mail.default' => 'log']);
 
         (new AppServiceProvider($this->app))->boot();
 
