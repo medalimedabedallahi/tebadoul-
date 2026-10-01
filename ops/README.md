@@ -87,8 +87,12 @@ transmet cette configuration aux sauvegardes et restaurations lancees pendant le
 chiffrement et le stockage hors site :
 
 ```bash
-export BACKUP_DIR=/var/backups/badal
-export BACKUP_AGE_RECIPIENTS_FILE=/etc/badal/backup-recipients.txt
+# deploy-hostinger.sh prend par defaut BACKUP_DIR=/var/backups/badal et, s'il existe,
+# BACKUP_AGE_RECIPIENTS_FILE=/etc/badal/backup-recipients.txt (le job GitHub Actions ne les transmet pas).
+sudo apt install --yes age
+age-keygen -o ~/tebadoul-backup.key   # cle PRIVEE : la garder HORS du VPS (gestionnaire de mots de passe)
+age-keygen -y ~/tebadoul-backup.key | sudo tee /etc/badal/backup-recipients.txt >/dev/null
+sudo install -d -m 700 -o deploy -g deploy /var/backups/badal
 ops/deploy-hostinger.sh sha-<commit>
 ```
 

@@ -12,4 +12,11 @@ export PG_SERVICE="${PG_SERVICE:-postgres}"
 export PGUSER="${PGUSER:-postgres}"
 export PGDATABASE="${PGDATABASE:-badal}"
 
+# Le job de deploiement GitHub Actions ne transmet aucune variable de sauvegarde : sans ces valeurs du VPS,
+# la sauvegarde pre-deploiement refuserait de tourner (aucun chiffrement configure) et bloquerait chaque deploiement.
+export BACKUP_DIR="${BACKUP_DIR:-/var/backups/badal}"
+if [[ -z "${BACKUP_AGE_RECIPIENTS_FILE:-}" && -z "${BACKUP_GPG_RECIPIENT:-}" && -r /etc/badal/backup-recipients.txt ]]; then
+    export BACKUP_AGE_RECIPIENTS_FILE=/etc/badal/backup-recipients.txt
+fi
+
 exec "$ROOT_DIR/ops/deploy.sh" "$@"
