@@ -3,7 +3,8 @@
 #
 # - charge les secrets fournis sous forme de fichiers (NOM_FILE=/run/secrets/...), typiquement Docker secrets ;
 # - refuse un demarrage manifestement dangereux (APP_KEY absente, debug actif en production) ;
-# - met la configuration Laravel en cache au demarrage (elle depend de l'environnement, donc pas au build) ;
+# - met la configuration et les routes Laravel en cache au demarrage (elles dependent de l'environnement : les
+#   routes Livewire sont prefixees d'un hash de APP_KEY), donc pas au build ;
 # - ne lance JAMAIS de migration : voir le service one-shot `migrate` de compose.prod.yaml.
 #
 # Les commandes qui ne sont pas php-fpm / php artisan (ex. `php -m`, `sh`) passent sans preparation.
@@ -41,5 +42,6 @@ if [ "${APP_ENV:-production}" = "production" ] && [ "${APP_DEBUG:-false}" = "tru
 fi
 
 php artisan config:cache --no-interaction
+php artisan route:cache --no-interaction
 
 exec "$@"

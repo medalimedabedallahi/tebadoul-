@@ -80,14 +80,15 @@ COPY . .
 # *:cache demarrent completement l'application, y compris les verifications de securite au boot
 # (AppServiceProvider) qui ne s'appliquent qu'en production/staging (SMS_DRIVER, MAIL_MAILER...). APP_ENV=testing
 # le temps de cette etape les evite sans avoir a lister chaque variable a mesure qu'elles sont ajoutees cote
-# application ; le contenu genere (routes, vues, evenements) ne differe pas selon l'environnement. Jamais copiee
+# application ; le contenu genere (vues, evenements) ne differe pas selon l'environnement. Jamais copiee
 # dans l'image finale (etape `production` ci-dessous repart de `base`, avec APP_ENV=production a l'execution).
+# Les routes ne sont PAS mises en cache ici : Livewire derive le prefixe de ses routes de APP_KEY, absente au
+# build ; elles le sont au demarrage par l'entrypoint, comme la configuration.
 ENV APP_ENV=testing
 
 RUN mkdir -p storage/app/public storage/framework/cache/data storage/framework/sessions \
         storage/framework/testing storage/framework/views storage/logs bootstrap/cache \
     && composer dump-autoload --no-dev --optimize --no-interaction \
-    && php artisan route:cache \
     && php artisan view:cache \
     && php artisan event:cache
 

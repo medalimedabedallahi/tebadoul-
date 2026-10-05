@@ -9,7 +9,7 @@
             <x-select name="audit_action" :label="__('admin.audit.filter_action')" wire:model.live="action" :options="$actions" />
         </div>
 
-        <form wire:submit="applyTarget" role="search" class="flex min-w-64 flex-1 flex-wrap items-end gap-3" novalidate>
+        <form method="post" wire:submit="applyTarget" role="search" class="flex min-w-64 flex-1 flex-wrap items-end gap-3" novalidate>
             <div class="min-w-64 flex-1">
                 <x-input
                     name="audit_target"

@@ -25,7 +25,7 @@
             </div>
         @endif
 
-        <form wire:submit="verify" wire:loading.attr="aria-busy" wire:target="verify" class="flex flex-col gap-5" novalidate>
+        <form method="post" wire:submit="verify" wire:loading.attr="aria-busy" wire:target="verify" class="flex flex-col gap-5" novalidate>
             <x-input
                 name="contact"
                 type="email"

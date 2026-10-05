@@ -5,7 +5,7 @@
     </div>
 
     <x-card>
-        <form wire:submit="resetPassword" class="flex flex-col gap-5" novalidate>
+        <form method="post" wire:submit="resetPassword" class="flex flex-col gap-5" novalidate>
             <x-input
                 name="contact"
                 type="email"

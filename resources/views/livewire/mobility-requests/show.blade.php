@@ -155,7 +155,7 @@
                 </div>
 
                 @if (in_array('renew', $actions, true))
-                    <form wire:submit="renew" class="flex flex-col gap-3 border-t border-line pt-5" novalidate>
+                    <form method="post" wire:submit="renew" class="flex flex-col gap-3 border-t border-line pt-5" novalidate>
                         <p class="text-sm text-ink-muted">{{ __('requests.show.renew_help') }}</p>
                         <div class="flex flex-wrap items-end gap-3">
                             <div class="min-w-56 flex-1">
@@ -167,7 +167,7 @@
                 @endif
 
                 @if (in_array('close', $actions, true))
-                    <form wire:submit="close" class="flex flex-col gap-3 border-t border-line pt-5" novalidate>
+                    <form method="post" wire:submit="close" class="flex flex-col gap-3 border-t border-line pt-5" novalidate>
                         <p class="text-sm text-ink-muted">{{ __('requests.show.close_help') }}</p>
                         <div class="flex flex-wrap items-end gap-3">
                             <div class="min-w-56 flex-1">

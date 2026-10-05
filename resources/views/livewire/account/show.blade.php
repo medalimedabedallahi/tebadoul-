@@ -47,7 +47,7 @@
             <x-alert type="success" class="mb-5">{{ $preferencesSaved }}</x-alert>
         @endif
 
-        <form wire:submit="savePreferences" class="flex flex-col gap-5" novalidate>
+        <form method="post" wire:submit="savePreferences" class="flex flex-col gap-5" novalidate>
             <x-checkbox
                 name="email_notifications"
                 :label="__('notifications.preferences.email_label')"
@@ -70,7 +70,7 @@
             <x-alert type="success" class="mb-5">{{ $passwordUpdated }}</x-alert>
         @endif
 
-        <form wire:submit="updatePassword" class="flex flex-col gap-5" novalidate>
+        <form method="post" wire:submit="updatePassword" class="flex flex-col gap-5" novalidate>
             <x-input
                 name="current_password"
                 type="password"
@@ -118,7 +118,7 @@
             </ul>
         </div>
 
-        <form wire:submit="deleteAccount" class="mt-5 flex flex-col gap-5" novalidate>
+        <form method="post" wire:submit="deleteAccount" class="mt-5 flex flex-col gap-5" novalidate>
             <x-input
                 name="delete_password"
                 type="password"
