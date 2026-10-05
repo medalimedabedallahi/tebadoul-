@@ -11,13 +11,6 @@ class HomePageTest extends TestCase
 {
     use RefreshDatabase;
 
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        $this->withoutVite();
-    }
-
     private function normalizedHtml(string $html): string
     {
         return preg_replace('/\s+/', ' ', $html) ?? $html;
