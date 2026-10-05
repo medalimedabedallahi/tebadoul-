@@ -4,7 +4,7 @@
     </div>
 
     <x-card>
-        <form wire:submit="login" class="flex flex-col gap-5" novalidate>
+        <form method="post" wire:submit="login" class="flex flex-col gap-5" novalidate>
             <x-input
                 name="identifier"
                 label="{{ __('auth.login.identifier_label') }}"

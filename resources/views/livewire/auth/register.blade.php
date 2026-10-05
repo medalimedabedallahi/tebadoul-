@@ -3,7 +3,7 @@
     :intro="__('auth.register.intro')"
     :current-step="1"
 >
-        <form wire:submit="register" wire:loading.attr="aria-busy" wire:target="register" class="flex flex-col gap-5" novalidate>
+        <form method="post" wire:submit="register" wire:loading.attr="aria-busy" wire:target="register" class="flex flex-col gap-5" novalidate>
             <p class="text-sm text-ink-muted">{{ __('common.required_legend') }}</p>
 
             <x-input

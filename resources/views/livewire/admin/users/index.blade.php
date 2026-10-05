@@ -17,7 +17,7 @@
         <x-alert type="success">{{ $decisionRecorded }}</x-alert>
     @endif
 
-    <form wire:submit="applySearch" role="search" class="flex flex-wrap items-end gap-3" novalidate>
+    <form method="post" wire:submit="applySearch" role="search" class="flex flex-wrap items-end gap-3" novalidate>
         <div class="min-w-64 flex-1">
             <x-input
                 name="search"
@@ -108,7 +108,7 @@
                 <span class="font-mono text-sm text-ink" dir="ltr">{{ $targetPublicId }}</span>
             </p>
 
-            <form wire:submit="confirmDecision" class="flex flex-col gap-5" novalidate>
+            <form method="post" wire:submit="confirmDecision" class="flex flex-col gap-5" novalidate>
                 <x-textarea
                     name="reason"
                     label="{{ __('admin.users.reason_label') }}"

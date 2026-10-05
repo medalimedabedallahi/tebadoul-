@@ -134,7 +134,7 @@
             @endif
 
             @if (in_array('send_message', $match['allowed_actions'], true))
-                <form wire:submit="sendMessage" class="flex flex-col gap-3" novalidate>
+                <form method="post" wire:submit="sendMessage" class="flex flex-col gap-3" novalidate>
                     <x-textarea name="body" :label="__('matches.fields.message')" wire:model="messageBody" rows="3" required />
                     <x-button type="submit" class="self-start" wire:loading.attr="disabled" wire:target="sendMessage">
                         {{ __('matches.actions.send_message') }}
@@ -182,7 +182,7 @@
                 </div>
 
                 @if (in_array('decline', $match['allowed_actions'], true))
-                    <form wire:submit="decline" class="flex flex-col gap-3 border-t border-line pt-5" novalidate>
+                    <form method="post" wire:submit="decline" class="flex flex-col gap-3 border-t border-line pt-5" novalidate>
                         <p class="text-sm text-ink-muted">{{ __('matches.show.decline_help') }}</p>
                         <div class="flex flex-wrap items-end gap-3">
                             <div class="min-w-56 flex-1">
@@ -249,7 +249,7 @@
                 @endif
 
                 @if (in_array('update_progress', $match['allowed_actions'], true))
-                    <form wire:submit="updateProgress" class="flex flex-col gap-3 border-t border-line pt-5" novalidate>
+                    <form method="post" wire:submit="updateProgress" class="flex flex-col gap-3 border-t border-line pt-5" novalidate>
                         <p class="text-sm text-ink-muted">{{ __('matches.show.progress_help') }}</p>
                         <div class="flex flex-wrap items-end gap-3">
                             <div class="min-w-56 flex-1">
@@ -270,7 +270,7 @@
                 @endif
 
                 @if (in_array('report', $match['allowed_actions'], true))
-                    <form wire:submit="report" class="flex flex-col gap-3 border-t border-line pt-5" novalidate>
+                    <form method="post" wire:submit="report" class="flex flex-col gap-3 border-t border-line pt-5" novalidate>
                         <h3 class="text-base font-semibold text-ink">{{ __('matches.show.report_heading') }}</h3>
                         <p class="text-sm text-ink-muted">{{ __('matches.show.report_help') }}</p>
                         <x-select name="report_reason" :label="__('matches.fields.report_reason')" :error="$errors->first('reason')" wire:model="reportReason" :options="$reportReasons" :placeholder="true" required />

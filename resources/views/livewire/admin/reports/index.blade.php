@@ -54,7 +54,7 @@
                             @endif
 
                             @if ($targetReport === $report->public_id)
-                                <form wire:submit="confirmDecision" class="flex flex-col gap-3 border-t border-line pt-4" novalidate>
+                                <form method="post" wire:submit="confirmDecision" class="flex flex-col gap-3 border-t border-line pt-4" novalidate>
                                     <x-textarea name="resolution_note" :label="__('moderation.resolution_note')" wire:model="resolutionNote" required />
                                     <div class="flex flex-wrap gap-3">
                                         <x-button type="submit" wire:loading.attr="disabled" wire:target="confirmDecision">{{ __('moderation.confirm') }}</x-button>

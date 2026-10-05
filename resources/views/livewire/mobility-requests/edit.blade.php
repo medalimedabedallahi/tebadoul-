@@ -6,7 +6,7 @@
         <p class="text-base text-ink-muted">{{ __('requests.edit.description') }}</p>
     </div>
 
-    <form wire:submit="save" class="flex flex-col gap-8" novalidate>
+    <form method="post" wire:submit="save" class="flex flex-col gap-8" novalidate>
         <p class="text-sm text-ink-muted">{{ __('common.required_legend') }}</p>
 
         <x-card :heading="__('requests.edit.dates_heading')" level="2">

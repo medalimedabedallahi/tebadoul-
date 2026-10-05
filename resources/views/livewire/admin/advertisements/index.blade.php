@@ -37,7 +37,7 @@
             level="2"
             wire:key="advertisement-form-{{ $editing }}"
         >
-            <form wire:submit="save" class="flex flex-col gap-5" novalidate>
+            <form method="post" wire:submit="save" class="flex flex-col gap-5" novalidate>
                 <p class="text-sm text-ink-muted">{{ __('common.required_legend') }}</p>
 
                 <x-input

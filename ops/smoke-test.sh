@@ -5,7 +5,7 @@
 #
 # Ressources creees (toutes nommees badal-smoke-*, supprimees en sortie) : un reseau et deux conteneurs --rm.
 # Verifie : utilisateur non root, absence de composer, extensions PHP, refus de APP_DEBUG=true / APP_KEY vide,
-# healthchecks, /up et /api/v1/health via Nginx, en-tetes de securite, blocage des .php et dotfiles.
+# healthchecks, /up et /api/v1/health via Nginx, script Livewire, en-tetes de securite, blocage des .php et dotfiles.
 set -Eeuo pipefail
 
 SCRIPT_NAME="smoke-test"
@@ -108,6 +108,12 @@ check "GET /api/v1/health -> 200 avec X-Request-ID" \
 check "/.env -> 403" bash -c "[[ \"\$(curl -s -o /dev/null -w '%{http_code}' '$base/.env')\" == 403 ]]"
 check "/autre.php -> 404 (seul index.php est execute)" bash -c "[[ \"\$(curl -s -o /dev/null -w '%{http_code}' '$base/autre.php')\" == 404 ]]"
 check "/build/ n'expose pas de listing" bash -c "[[ \"\$(curl -s -o /dev/null -w '%{http_code}' '$base/build/')\" != 200 ]]"
+
+# Les pages pointent vers le script Livewire sous un prefixe derive de APP_KEY : les routes en cache doivent avoir
+# ete construites avec la meme cle, sinon le script et l'envoi des formulaires repondent 404.
+livewire_script="$(docker exec "$app_container" php -r 'require "vendor/autoload.php"; $app = require "bootstrap/app.php"; $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap(); echo Livewire\Mechanisms\HandleRequests\EndpointResolver::scriptPath(true);' 2>/dev/null || true)"
+check "script Livewire servi (${livewire_script:-chemin introuvable})" \
+    bash -c "[[ -n '$livewire_script' && \"\$(curl -s -o /dev/null -w '%{http_code}' '$base$livewire_script')\" == 200 ]]"
 
 headers="$(curl -s -D - -o /dev/null "$base/up" || true)"
 check "en-tete X-Content-Type-Options" grep -qi '^x-content-type-options: nosniff' <<<"$headers"
