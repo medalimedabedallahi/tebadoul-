@@ -119,7 +119,7 @@ CMD ["php-fpm"]
 
 # Nginx de production : image non privilegiee (ecoute sur 8080), fichiers statiques embarques.
 # Le TLS est termine en frontal ; voir docker/nginx/production.conf.
-FROM nginxinc/nginx-unprivileged:1.29-alpine@sha256:0c79d56aee561a1d81c63f00eee5fb5fe29279560cdc55e91425133104c7fbe6 AS nginx-production
+FROM nginxinc/nginx-unprivileged:1.31-alpine@sha256:26b0bf6fbf07297983cb341998d79c831508787de26627dd2a112321b9c3a4af AS nginx-production
 
 # Applique les correctifs de securite Alpine publies depuis la construction de l'image de base (Trivy bloque en CI
 # sur HIGH/CRITICAL corrigeables), puis revient a l'utilisateur non privilegie de l'image.
