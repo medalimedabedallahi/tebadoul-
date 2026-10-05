@@ -75,13 +75,16 @@ jobs:
           key: composer-${{ runner.os }}-${{ hashFiles('composer.lock') }}
           restore-keys: composer-${{ runner.os }}-
 
+      # .env avant composer install : le hook package:discover demarre l'application, qui sans .env serait en
+      # production avec MAIL_MAILER=log, configuration que AppServiceProvider refuse.
+      - name: Configure application
+        run: cp .env.example .env
+
       - name: Install PHP dependencies
         run: composer install --no-interaction --prefer-dist --no-progress
 
-      - name: Configure application
-        run: |
-          cp .env.example .env
-          php artisan key:generate
+      - name: Generate application key
+        run: php artisan key:generate
 
       - name: Audit PHP dependencies
         run: composer audit
@@ -152,13 +155,16 @@ jobs:
           key: composer-${{ runner.os }}-${{ hashFiles('composer.lock') }}
           restore-keys: composer-${{ runner.os }}-
 
+      # .env avant composer install : le hook package:discover demarre l'application, qui sans .env serait en
+      # production avec MAIL_MAILER=log, configuration que AppServiceProvider refuse.
+      - name: Configure application
+        run: cp .env.example .env
+
       - name: Install PHP dependencies
         run: composer install --no-interaction --prefer-dist --no-progress
 
-      - name: Configure application
-        run: |
-          cp .env.example .env
-          php artisan key:generate
+      - name: Generate application key
+        run: php artisan key:generate
 
       - name: Migrations en attente (dry-run, verifie le SQL sans l'appliquer)
         run: php artisan migrate --pretend --no-interaction

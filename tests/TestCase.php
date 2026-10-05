@@ -7,6 +7,16 @@ use RuntimeException;
 
 abstract class TestCase extends BaseTestCase
 {
+    /**
+     * Pages render without the Vite manifest: CI does not build the frontend before the backend tests.
+     */
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->withoutVite();
+    }
+
     protected function refreshApplication(): void
     {
         parent::refreshApplication();
