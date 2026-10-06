@@ -82,13 +82,15 @@ jobs:
           key: composer-${{ runner.os }}-${{ hashFiles('composer.lock') }}
           restore-keys: composer-${{ runner.os }}-
 
+      # package:discover boots the application during composer install.
+      - name: Configure application environment
+        run: cp .env.example .env
+
       - name: Install PHP dependencies
         run: composer install --no-interaction --prefer-dist --no-progress
 
-      - name: Configure application
-        run: |
-          cp .env.example .env
-          php artisan key:generate
+      - name: Generate application key
+        run: php artisan key:generate
 
       - name: Peupler le schema (migrations) sur le PostgreSQL ephemere
         run: php artisan migrate --force --no-interaction
