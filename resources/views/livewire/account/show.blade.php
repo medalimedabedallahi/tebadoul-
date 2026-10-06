@@ -66,6 +66,12 @@
     </x-card>
 
     <x-card :heading="__('auth.account.change_password_heading')" level="2">
+        @if ($googleLinked)
+            <p class="mb-5 text-sm text-ink-soft">
+                {{ __('auth.google.password_help') }}
+                <a href="{{ route('password.request') }}" class="font-semibold text-brand-strong underline">{{ __('auth.login.forgot_password') }}</a>
+            </p>
+        @endif
         @if ($passwordUpdated)
             <x-alert type="success" class="mb-5">{{ $passwordUpdated }}</x-alert>
         @endif
@@ -106,6 +112,20 @@
                 </span>
             </x-button>
         </form>
+    </x-card>
+
+    <x-card :heading="__('auth.google.heading')" level="2">
+        @if ($googleLinked)
+            <p class="text-ink-soft">{{ __('auth.google.linked') }}</p>
+        @elseif (\App\Support\Auth\GoogleIdentity::isConfigured())
+            <form method="post" action="{{ route('google.link') }}" class="flex flex-col gap-4">
+                @csrf
+                <p class="text-sm text-ink-soft">{{ __('auth.google.link_help') }}</p>
+                <x-button type="submit" variant="secondary">{{ __('auth.google.link') }}</x-button>
+            </form>
+        @else
+            <p class="text-sm text-ink-muted">{{ __('auth.google.unavailable') }}</p>
+        @endif
     </x-card>
 
     <x-card :heading="__('auth.account.delete_heading')" level="2" class="border-danger">

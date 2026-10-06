@@ -29,6 +29,7 @@ use Laravel\Sanctum\HasApiTokens;
  * @property string $name
  * @property string|null $email
  * @property string|null $phone
+ * @property string|null $google_id
  * @property Carbon|null $email_verified_at
  * @property Carbon|null $phone_verified_at
  * @property string $password
@@ -41,7 +42,7 @@ use Laravel\Sanctum\HasApiTokens;
  * @property Carbon|null $anonymized_at
  */
 #[Fillable(['name', 'email', 'phone', 'locale', 'password'])]
-#[Hidden(['password', 'remember_token', 'email', 'phone'])]
+#[Hidden(['password', 'remember_token', 'email', 'phone', 'google_id'])]
 #[RouteKey('public_id')]
 class User extends Authenticatable
 {

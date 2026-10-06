@@ -2,13 +2,14 @@
 
 - Statut : accepte
 - Date : 2026-09-21
+- Mise a jour : 2026-10-06 (nom public et verification par courriel uniquement)
 - Source : PRD Badal v1.0 et audit consolide
 
 ## Decisions
 
-1. Le produit conserve le nom **Badal** pendant le MVP.
+1. Le nom public du produit est **Tebadoul** (anciennement Badal). Les identifiants techniques historiques restent inchanges pour preserver les deploiements et les cles derivees.
 2. Le web est construit avec Laravel et Livewire. Tous les parcours metier passent aussi par une API REST versionnee sous `/api/v1`.
-3. L'identite accepte le telephone, le courriel, ou les deux. Au moins un moyen de contact doit etre verifie avant publication d'une demande.
+3. L'inscription exige un courriel, verifie par un code envoye uniquement par courriel avant l'acces aux fonctionnalites du compte. Le telephone est facultatif et n'est pas verifie ; aucune passerelle SMS n'est configuree. La connexion reste compatible avec les telephones deja verifies d'anciens comptes.
 4. Le MVP implemente uniquement le matching direct entre deux demandes. Le schema devra rester extensible sans activer les cycles.
 5. L'acceptation d'un match ne revele jamais automatiquement les coordonnees.
 6. Le partage exige un consentement explicite de chaque participant. Le consentement est horodate, audite et revocable pour les futurs acces.

@@ -3,6 +3,7 @@
 namespace Tests\Feature\Policies;
 
 use App\Enums\UserRole;
+use App\Enums\UserStatus;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -34,6 +35,19 @@ class UserPolicyTest extends TestCase
 
         $this->assertTrue($user->can('update', $user));
         $this->assertFalse($user->can('update', $other));
+    }
+
+    public function test_only_an_active_owner_can_link_google(): void
+    {
+        $owner = User::factory()->create();
+        $other = User::factory()->create();
+        $suspended = User::factory()->suspended()->create();
+        $pending = User::factory()->unverified()->create(['status' => UserStatus::PendingVerification]);
+
+        $this->assertTrue($owner->can('linkGoogle', $owner));
+        $this->assertFalse($other->can('linkGoogle', $owner));
+        $this->assertFalse($suspended->can('linkGoogle', $suspended));
+        $this->assertFalse($pending->can('linkGoogle', $pending));
     }
 
     public function test_an_ordinary_user_may_not_list_create_or_delete_accounts(): void

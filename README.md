@@ -16,11 +16,13 @@ Tebadoul (anciennement Badal) est une plateforme de mise en relation pour les pe
 
 ```bash
 cp .env.example .env
+# Remplacer DB_PASSWORD et REDIS_PASSWORD avant de lancer Compose.
 npm ci
 npm run build
 docker compose build
 docker compose run --rm app php artisan key:generate
 docker compose run --rm app php artisan migrate
+docker compose run --rm -u www-data app php artisan db:seed --class=ReferenceDataSeeder
 docker compose up -d
 ```
 
@@ -33,6 +35,32 @@ Application : `http://localhost:8098`
 API de sante : `http://localhost:8098/api/v1/health`
 
 Mailpit : `http://localhost:8026`
+
+## Referentiels professionnels avant utilisation
+
+Le seeder charge les secteurs, wilayas et moughataas. Les professions, specialites, grades et etablissements doivent etre approuves par les responsables metier puis importes ; sans professions actives, aucun profil professionnel ne peut etre enregistre.
+
+Preparer des CSV UTF-8 separes par des virgules, avec les en-tetes suivants. La colonne optionnelle `active` vaut `1` par defaut ; utiliser `0` pour desactiver une entree. Les codes sont stables et les noms FR/AR obligatoires.
+
+| Type | En-tete obligatoire |
+| --- | --- |
+| professions | `code,sector_code,name_fr,name_ar` |
+| specialties | `code,profession_code,name_fr,name_ar` |
+| grades | `code,profession_code,name_fr,name_ar` |
+| establishments | `code,sector_code,moughataa_code,type,name_fr,name_ar` |
+
+Deposer les fichiers approuves aux chemins ci-dessous, puis les importer dans cet ordre (les parents doivent deja exister). Aucun jeu professionnel fictif n'est livre ni importe automatiquement.
+
+```bash
+docker compose run --rm -u www-data app php artisan references:import professions database/data/references/professions.csv
+docker compose run --rm -u www-data app php artisan references:import specialties database/data/references/specialties.csv
+docker compose run --rm -u www-data app php artisan references:import grades database/data/references/grades.csv
+docker compose run --rm -u www-data app php artisan references:import establishments database/data/references/establishments.csv
+```
+
+Chaque import est atomique et idempotent. Une ligne invalide annule l'import du fichier entier. Verifier ensuite le parcours FR/AR de creation du profil pour chaque profession du pilote.
+
+Les matrices de compatibilite, le secteur et les zones du pilote, les informations juridiques et les durees de conservation restent a valider. Conserver `MATCHING_ENABLED=false` et `LEGAL_TEXTS_DRAFT=true` pendant cette preparation. Le test avec lecteur d'ecran et l'exercice de restauration sur une vraie sauvegarde de production restent requis (voir `docs/implementation-plan.md` et `ops/README.md`).
 
 ## Verification
 

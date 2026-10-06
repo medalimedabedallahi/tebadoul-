@@ -3,6 +3,7 @@
     :intro="__('auth.register.intro')"
     :current-step="1"
 >
+        <div class="mb-5"><x-google-sign-in /></div>
         <form method="post" wire:submit="register" wire:loading.attr="aria-busy" wire:target="register" class="flex flex-col gap-5" novalidate>
             <p class="text-sm text-ink-muted">{{ __('common.required_legend') }}</p>
 
@@ -23,6 +24,7 @@
                 autocomplete="email"
                 inputmode="email"
                 dir="ltr"
+                required
             />
 
             <x-input
