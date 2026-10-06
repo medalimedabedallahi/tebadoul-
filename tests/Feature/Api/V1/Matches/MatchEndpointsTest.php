@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Api\V1\Matches;
 
+use App\Actions\Matching\InviteToMatch;
 use App\Enums\MatchStatus;
 use App\Enums\MobilityRequestStatus;
 use App\Enums\TokenAbility;
@@ -173,6 +174,25 @@ class MatchEndpointsTest extends TestCase
             ->postJson("/api/v1/matches/{$match->public_id}/invitation")
             ->assertNotFound()
             ->assertJsonPath('code', 'not_found');
+    }
+
+    public function test_an_overdue_invitation_hides_acceptance_and_returns_409_without_waiting_for_the_scheduler(): void
+    {
+        $this->freezeSecond();
+        [$rosso, $hodh, $match] = $this->createMatchedPair();
+        app(InviteToMatch::class)->handle($rosso, $match->public_id);
+        $this->travelTo($match->refresh()->expires_at->copy()->addSecond());
+        $token = $this->tokenFor($hodh);
+
+        $this->withToken($token)->getJson("/api/v1/matches/{$match->public_id}")
+            ->assertOk()
+            ->assertJsonPath('data.allowed_actions', ['decline', 'block', 'report']);
+        $this->withToken($token)->postJson("/api/v1/matches/{$match->public_id}/acceptance")
+            ->assertConflict()
+            ->assertJsonPath('code', 'invalid_match_transition');
+
+        $this->assertSame(MatchStatus::Invited, $match->refresh()->status);
+        $this->assertNull($match->participantOf($hodh)?->decision);
     }
 
     private function tokenFor(User $user): string

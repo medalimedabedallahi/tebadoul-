@@ -26,7 +26,7 @@ return [
             [
                 'heading' => 'Compte et accès',
                 'paragraphs' => [
-                    'L’inscription se fait avec un numéro de téléphone, une adresse courriel, ou les deux. Au moins un de ces contacts doit être vérifié par un code avant toute utilisation.',
+                    'L’inscription exige une adresse courriel. Un code est envoyé uniquement par courriel pour vérifier cette adresse avant l’accès aux fonctionnalités du compte. Le numéro de téléphone est facultatif et n’est pas vérifié par le service.',
                     'Vous vous engagez à fournir des informations exactes, à ne créer qu’un seul compte et à garder votre mot de passe secret. Vous êtes responsable de l’usage fait de votre compte.',
                 ],
             ],
@@ -89,6 +89,13 @@ return [
         'description' => 'Comment Tebadoul collecte, utilise et protège vos données personnelles.',
         'sections' => [
             [
+                'heading' => 'Connexion facultative avec Google',
+                'paragraphs' => [
+                    'Si vous choisissez Google, nous recevons votre nom, votre adresse e-mail vérifiée et un identifiant Google stable pour créer ou retrouver votre compte. Nous ne demandons aucun accès à Gmail et ne conservons aucun jeton Google. L’identifiant Google est effacé lors de la suppression du compte.',
+                    'Vous êtes redirigé vers Google pour vous authentifier ; cette étape relève aussi de la politique de confidentialité de Google. Un compte Tebadoul existant doit être connecté avant de pouvoir lui associer Google. Pour un nouveau compte, l’acceptation des conditions et de cette politique reste obligatoire.',
+                ],
+            ],
+            [
                 'heading' => 'Responsable du traitement',
                 'paragraphs' => [
                     'Le responsable du traitement est [nom de l’organisme, adresse et contact, à compléter]. Le traitement respecte la réglementation mauritanienne applicable à la protection des données personnelles [référence exacte à compléter par le juriste].',
@@ -97,7 +104,7 @@ return [
             [
                 'heading' => 'Données collectées',
                 'paragraphs' => [
-                    'Compte : nom, numéro de téléphone et/ou adresse courriel, mot de passe (enregistré uniquement sous forme chiffrée irréversible), langue et préférences de notification.',
+                    'Compte : nom, adresse courriel obligatoire, numéro de téléphone facultatif, mot de passe (enregistré uniquement sous forme chiffrée irréversible), langue et préférences de notification.',
                     'Situation professionnelle : secteur, profession, spécialité, grade, affectation actuelle et, si vous le donnez, votre identifiant professionnel.',
                     'Utilisation du service : demandes de mobilité, correspondances, invitations, messages, consentements au partage de coordonnées, blocages et signalements.',
                     'Données techniques : adresse IP pour la sécurité et le journal des actions sensibles, et journaux techniques de fonctionnement.',
@@ -113,7 +120,7 @@ return [
                 'heading' => 'Qui voit vos données',
                 'paragraphs' => [
                     'Les autres utilisateurs voient uniquement les éléments nécessaires à une correspondance (profession, affectation, destinations, disponibilité), jamais votre nom ni vos coordonnées sans votre accord.',
-                    'Les modérateurs voient les signalements et les échanges concernés ; les administrateurs voient l’identifiant public et le statut des comptes. Vos données ne sont ni vendues ni transmises à des tiers à des fins commerciales. Prestataires techniques (hébergement, envoi de courriels et de SMS) : [liste à compléter].',
+                    'Les modérateurs voient les signalements et les échanges concernés ; les administrateurs voient l’identifiant public et le statut des comptes. Vos données ne sont ni vendues ni transmises à des tiers à des fins commerciales. Prestataires techniques (hébergement et envoi de courriels) : [liste à compléter].',
                 ],
             ],
             [

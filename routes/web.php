@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AdvertisementImageController;
+use App\Http\Controllers\Auth\GoogleAuthController;
 use App\Http\Controllers\SwitchLocaleController;
 use App\Livewire\Account\Show as AccountShow;
 use App\Livewire\Admin\Advertisements\Index as AdminAdvertisementsIndex;
@@ -41,7 +42,12 @@ Route::middleware('guest')->group(function (): void {
     Route::get('/connexion', Login::class)->name('login');
     Route::get('/mot-de-passe-oublie', ForgotPassword::class)->name('password.request');
     Route::get('/reinitialiser-mot-de-passe', SetNewPassword::class)->name('password.reset');
+    Route::get('/auth/google', [GoogleAuthController::class, 'redirect'])->middleware('throttle:20,1')->name('google.redirect');
+    Route::get('/inscription/google', [GoogleAuthController::class, 'registration'])->name('google.register');
+    Route::post('/inscription/google', [GoogleAuthController::class, 'store'])->middleware('throttle:10,1')->name('google.register.store');
 });
+
+Route::get('/auth/google/callback', [GoogleAuthController::class, 'callback'])->middleware('throttle:20,1')->name('google.callback');
 
 // Reachable whether or not the visitor is signed in: verifying a contact never requires nor
 // grants a session by itself (an account pending verification is never signed in, see Login).
@@ -49,6 +55,7 @@ Route::get('/verification-contact', VerifyContactCode::class)->name('verificatio
 
 Route::middleware(['auth', 'account.active'])->group(function (): void {
     Route::get('/mon-compte', AccountShow::class)->name('account.show');
+    Route::post('/mon-compte/google', [GoogleAuthController::class, 'link'])->middleware('throttle:10,1')->name('google.link');
     Route::get('/mon-profil', ProfileEdit::class)->name('profile.edit');
 
     Route::get('/mes-demandes', RequestsIndex::class)->name('requests.index');

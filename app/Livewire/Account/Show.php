@@ -152,6 +152,7 @@ class Show extends Component
         return view('livewire.account.show', [
             'accountName' => $user->name,
             'accountStatus' => $user->status,
+            'googleLinked' => $user->google_id !== null,
             'maskedEmail' => ContactMasker::email($user->email),
             'maskedPhone' => ContactMasker::phone($user->phone),
             'hasVerifiedEmail' => $user->email !== null && $user->email_verified_at !== null,

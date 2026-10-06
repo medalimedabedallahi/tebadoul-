@@ -33,6 +33,11 @@ class UserPolicy
         return $user->is($model);
     }
 
+    public function linkGoogle(User $user, User $model): bool
+    {
+        return $user->is($model) && $user->status === UserStatus::Active;
+    }
+
     /**
      * Only an active account manages its own professional profile.
      */

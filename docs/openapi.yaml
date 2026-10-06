@@ -263,11 +263,11 @@ paths:
   /auth/register:
     post:
       operationId: registerUser
-      summary: Creer un compte (courriel et/ou telephone)
+      summary: Creer un compte avec un courriel obligatoire
       description: >-
-        Cree un compte avec un mot de passe et au moins un moyen de contact (courriel, telephone,
-        ou les deux) ; un code de verification est envoye a chaque contact fourni. Le compte est
-        cree avec le statut `pending_verification`. Limite de debit `register`. Accepte
+        Cree un compte avec un mot de passe et une adresse courriel obligatoire. Le telephone est
+        facultatif et n'est pas verifie ; le code de verification est envoye uniquement par courriel.
+        Le compte est cree avec le statut `pending_verification`. Limite de debit `register`. Accepte
         `Idempotency-Key` pour rendre un renvoi sans double effet.
       tags: [Auth]
       parameters:
@@ -430,8 +430,8 @@ paths:
       operationId: sendContactVerification
       summary: Envoyer un code de verification de contact
       description: >-
-        Envoie un code de verification au contact indique, s'il est associe a un compte et n'est
-        pas deja verifie. Reponse generique `202` identique que le contact existe ou non
+        Envoie par courriel un code de verification a l'adresse indiquee, si elle est associee a un
+        compte et n'est pas deja verifiee. Reponse generique `202` identique que le contact existe ou non
         (anti-enumeration). Le renvoi invalide le code precedemment emis. Limite de debit
         `otp-send`.
       tags: [Auth]
@@ -491,8 +491,8 @@ paths:
       operationId: requestPasswordReset
       summary: Demander la reinitialisation du mot de passe
       description: >-
-        Envoie un code de reinitialisation au contact indique (courriel ou telephone ; fonctionne
-        pour un compte identifie uniquement par telephone). Reponse generique `202` identique que
+        Envoie un code de reinitialisation a l'adresse courriel verifiee indiquee.
+        Les numeros de telephone ne sont pas acceptes. Reponse generique `202` identique que
         le contact existe ou non. Limite de debit `password-reset`.
       tags: [Auth]
       parameters:
@@ -1171,6 +1171,9 @@ paths:
       description: >-
         Reserve au destinataire d'une invitation. L'accord devient mutuel et les deux demandes
         deviennent `matched`. L'acceptation ne vaut pas consentement au partage des coordonnees.
+        Une invitation dont l'echeance est depassee est refusee avec `409 invalid_match_transition`,
+        meme si la tache d'expiration n'a pas encore ete executee. L'action `accept` n'est alors
+        plus proposee dans `allowed_actions`. L'instant exact de l'echeance reste inclus.
       tags: [Matches]
       security: [{ bearerAuth: [] }]
       parameters:
@@ -2387,12 +2390,11 @@ components:
           type: string
           format: email
           maxLength: 255
-          nullable: true
         phone:
           type: string
           maxLength: 32
           nullable: true
-          description: Numero national ou international ; un numero sans indicatif recoit l'indicatif par defaut du serveur.
+          description: Numero facultatif, non verifie, national ou international ; un numero sans indicatif recoit l'indicatif par defaut du serveur.
         password:
           type: string
           minLength: 12

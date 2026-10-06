@@ -123,11 +123,12 @@ final class MatchPresenter
 
         $status = $match->status;
         $blocked = $blockedByMe || $blockedMe;
+        $invitationExpired = $match->expires_at?->isBefore(now()) ?? false;
 
         return array_values(array_filter([
             ! $blocked && $status === MatchStatus::Suggested ? 'invite' : null,
             $status === MatchStatus::Suggested || ($status === MatchStatus::Invited && $mine->decision === null) ? 'decline' : null,
-            ! $blocked && $status === MatchStatus::Invited && $mine->decision === null ? 'accept' : null,
+            ! $blocked && ! $invitationExpired && $status === MatchStatus::Invited && $mine->decision === null ? 'accept' : null,
             ($status === MatchStatus::Invited && $mine->decision === MatchDecision::Accepted) || $status->isAccord() ? 'withdraw' : null,
             ! $blocked && $status->isAccord() && $mine->contact_consented_at === null ? 'grant_contact_consent' : null,
             $mine->contact_consented_at !== null ? 'revoke_contact_consent' : null,

@@ -41,12 +41,14 @@ class UserModelTest extends TestCase
         $user = User::factory()->create([
             'phone' => '+22242222222',
             'phone_verified_at' => now(),
+            'google_id' => 'private-google-subject',
         ]);
 
         $serialized = $user->toArray();
 
         $this->assertArrayNotHasKey('email', $serialized);
         $this->assertArrayNotHasKey('phone', $serialized);
+        $this->assertArrayNotHasKey('google_id', $serialized);
         $this->assertArrayNotHasKey('password', $serialized);
         $this->assertArrayHasKey('public_id', $serialized);
     }

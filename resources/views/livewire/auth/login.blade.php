@@ -4,6 +4,7 @@
     </div>
 
     <x-card>
+        <div class="mb-5"><x-google-sign-in /></div>
         <form method="post" wire:submit="login" class="flex flex-col gap-5" novalidate>
             <x-input
                 name="identifier"

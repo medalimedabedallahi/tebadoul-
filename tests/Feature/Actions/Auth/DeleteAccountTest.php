@@ -47,7 +47,7 @@ class DeleteAccountTest extends TestCase
     public function test_the_account_is_anonymized_its_personal_data_erased_and_the_deletion_audited(): void
     {
         [$rosso, $hodh, $match] = $this->createMatchedPair();
-        $rosso->forceFill(['password' => self::PASSWORD, 'phone' => '+22241111111', 'phone_verified_at' => now()])->save();
+        $rosso->forceFill(['password' => self::PASSWORD, 'phone' => '+22241111111', 'phone_verified_at' => now(), 'google_id' => 'google-deleted-subject'])->save();
         $rosso->createToken('mobile');
         $this->freezeSecond();
 
@@ -58,6 +58,7 @@ class DeleteAccountTest extends TestCase
         $this->assertSame(DeleteAccount::ANONYMIZED_NAME, $rosso->name);
         $this->assertNull($rosso->email);
         $this->assertNull($rosso->phone);
+        $this->assertNull($rosso->google_id);
         $this->assertNull($rosso->email_verified_at);
         $this->assertNull($rosso->phone_verified_at);
         $this->assertTrue(now()->equalTo($rosso->anonymized_at));

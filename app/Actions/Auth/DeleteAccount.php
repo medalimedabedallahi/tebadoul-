@@ -89,6 +89,7 @@ final class DeleteAccount
                 'name' => self::ANONYMIZED_NAME,
                 'email' => null,
                 'phone' => null,
+                'google_id' => null,
                 'email_verified_at' => null,
                 'phone_verified_at' => null,
                 'password' => Str::random(64),
