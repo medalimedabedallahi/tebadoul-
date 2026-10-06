@@ -12,6 +12,7 @@ use App\Enums\MatchDeclineReason;
 use App\Enums\MatchStatus;
 use App\Enums\MobilityRequestStatus;
 use App\Exceptions\Matching\ContactNotAuthorizedException;
+use App\Exceptions\Matching\InvalidMatchTransitionException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Support\CreatesMatchedPair;
 use Tests\TestCase;
@@ -110,5 +111,40 @@ class MatchParticipationActionsTest extends TestCase
         $this->artisan('matches:expire-invitations')->expectsOutput('1 invitation(s) expired.')->assertSuccessful();
 
         $this->assertSame(MatchStatus::Expired, $match->refresh()->status);
+    }
+
+    public function test_an_overdue_invitation_cannot_be_accepted_before_the_scheduler_runs(): void
+    {
+        $this->freezeSecond();
+        [$rosso, $hodh, $match] = $this->createMatchedPair();
+        app(InviteToMatch::class)->handle($rosso, $match->public_id);
+        $this->travelTo($match->refresh()->expires_at->copy()->addSecond());
+        $notificationCount = $rosso->notifications()->count();
+
+        try {
+            app(AcceptMatch::class)->handle($hodh, $match->public_id);
+            $this->fail('An overdue invitation must not be accepted.');
+        } catch (InvalidMatchTransitionException) {
+            $this->assertSame(MatchStatus::Invited, $match->refresh()->status);
+        }
+
+        $this->assertNull($match->participantOf($hodh)?->decision);
+        $this->assertSame(MobilityRequestStatus::Published, $rosso->mobilityRequests()->sole()->status);
+        $this->assertSame(MobilityRequestStatus::Published, $hodh->mobilityRequests()->sole()->status);
+        $this->assertSame($notificationCount, $rosso->notifications()->count());
+    }
+
+    public function test_an_invitation_can_still_be_accepted_at_its_exact_deadline(): void
+    {
+        $this->freezeSecond();
+        [$rosso, $hodh, $match] = $this->createMatchedPair();
+        app(InviteToMatch::class)->handle($rosso, $match->public_id);
+        $this->travelTo($match->refresh()->expires_at->copy());
+
+        app(AcceptMatch::class)->handle($hodh, $match->public_id);
+
+        $this->assertSame(MatchStatus::Mutual, $match->refresh()->status);
+        $this->assertSame(MobilityRequestStatus::Matched, $rosso->mobilityRequests()->sole()->status);
+        $this->assertSame(MobilityRequestStatus::Matched, $hodh->mobilityRequests()->sole()->status);
     }
 }

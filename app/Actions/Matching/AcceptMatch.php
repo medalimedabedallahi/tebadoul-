@@ -42,8 +42,9 @@ final class AcceptMatch
                 ->whereIn('id', $match->participants->pluck('mobility_request_id'))
                 ->where('status', MobilityRequestStatus::Published)
                 ->count() === 2;
+            $invitationExpired = $match->expires_at?->isBefore(now()) ?? false;
 
-            if ($match->status !== MatchStatus::Invited || $mine->decision !== null || ! $requestsPublished) {
+            if ($match->status !== MatchStatus::Invited || $mine->decision !== null || ! $requestsPublished || $invitationExpired) {
                 throw new InvalidMatchTransitionException($match->status, 'accept');
             }
 
