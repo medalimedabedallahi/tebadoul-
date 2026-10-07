@@ -36,7 +36,7 @@
                                     {{ __('notifications.types.'.$notification->type) }}
                                 </p>
                                 <p class="text-sm text-ink-muted">
-                                    <time datetime="{{ $notification->created_at?->toIso8601String() }}">{{ $notification->created_at?->translatedFormat('j F Y, H:i') }}</time>
+                                    <time datetime="{{ $notification->created_at?->toIso8601String() }}">{{ $notification->created_at?->translatedFormat(__('common.datetime_format')) }}</time>
                                 </p>
                             </div>
 

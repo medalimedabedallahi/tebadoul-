@@ -89,7 +89,7 @@
         @if ($profile)
             <p class="text-base text-ink">{{ $profile->profession->localizedName() }}</p>
             <p class="text-base text-ink-soft">
-                {{ $profile->moughataa->localizedName() }}, {{ $profile->moughataa->wilaya->localizedName() }}
+                {{ __('requests.show.origin_place', ['moughataa' => $profile->moughataa->localizedName(), 'wilaya' => $profile->moughataa->wilaya->localizedName()]) }}
             </p>
             @if ($profile->establishment)
                 <p class="text-base text-ink-soft">{{ $profile->establishment->localizedName() }}</p>

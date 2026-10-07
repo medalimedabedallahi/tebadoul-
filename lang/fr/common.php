@@ -9,6 +9,8 @@ return [
     'required' => 'obligatoire',
     'required_legend' => 'Les champs marqués d’un astérisque (*) sont obligatoires.',
     'select_placeholder' => 'Sélectionner une option',
+    'datetime_format' => 'j F Y, H:i',
+    'datetime_short_format' => 'j F, H:i',
     'yes' => 'Oui',
     'no' => 'Non',
     'status' => [
@@ -31,6 +33,6 @@ return [
     ],
     'footer' => [
         'copyright' => '© :year :name',
-        'note' => 'Plateforme en cours de développement.',
+        'note' => 'Service gratuit, en phase pilote.',
     ],
 ];

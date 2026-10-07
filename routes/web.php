@@ -85,3 +85,7 @@ Route::middleware(['auth', 'account.active'])->group(function (): void {
         ->middleware('can:viewAny,'.Advertisement::class)
         ->name('admin.advertisements.index');
 });
+
+// An unmatched URL otherwise skips the web middleware: the 404 page would ignore the visitor's
+// session language. API paths keep their JSON 404.
+Route::fallback(fn () => abort(404))->where('fallbackPlaceholder', '^(?!api(/|$)).*');
