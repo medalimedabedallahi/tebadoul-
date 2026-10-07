@@ -9,6 +9,8 @@ return [
     'required' => 'إلزامي',
     'required_legend' => 'الحقول المشار إليها بنجمة (*) إلزامية.',
     'select_placeholder' => 'اختر أحد الخيارات',
+    'datetime_format' => 'j F Y، H:i',
+    'datetime_short_format' => 'j F، H:i',
     'yes' => 'نعم',
     'no' => 'لا',
     'status' => [
@@ -31,6 +33,6 @@ return [
     ],
     'footer' => [
         'copyright' => '© :year :name',
-        'note' => 'المنصة قيد التطوير.',
+        'note' => 'خدمة مجانية في مرحلتها التجريبية.',
     ],
 ];

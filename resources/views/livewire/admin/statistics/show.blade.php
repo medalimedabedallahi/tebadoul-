@@ -37,7 +37,7 @@
         <p class="text-base text-ink-muted">{{ __('admin.statistics.intro') }}</p>
         <p class="text-sm text-ink-muted">
             {{ __('admin.statistics.generated_at') }}
-            <time datetime="{{ $statistics['generated_at'] }}">{{ \Illuminate\Support\Carbon::parse($statistics['generated_at'])->translatedFormat('j F Y, H:i') }}</time>
+            <time datetime="{{ $statistics['generated_at'] }}">{{ \Illuminate\Support\Carbon::parse($statistics['generated_at'])->translatedFormat(__('common.datetime_format')) }}</time>
         </p>
     </div>
 

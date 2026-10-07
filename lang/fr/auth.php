@@ -28,7 +28,7 @@ return [
 
     'flow' => [
         'promise' => 'Une permutation commence par une identité vérifiée.',
-        'description' => 'Créez votre compte, confirmez votre contact, puis indiquez le poste et la destination que vous recherchez.',
+        'description' => 'Créez votre compte, confirmez votre adresse e-mail, puis indiquez le poste et la destination que vous recherchez.',
         'progress_label' => 'Progression de la création du compte',
         'step_status' => 'Étape :current sur 3',
         'steps' => [
@@ -85,10 +85,10 @@ return [
         'code_help' => 'Le code à 6 chiffres qui vous a été envoyé.',
         'submit' => 'Vérifier',
         'resend' => 'Renvoyer le code',
-        'resend_success' => 'Si un compte correspond à ce contact, un nouveau code a été envoyé.',
+        'resend_success' => 'Si un compte correspond à cette adresse, un nouveau code a été envoyé.',
         'throttled_send' => 'Trop de demandes de code. Veuillez réessayer dans :seconds secondes.',
         'throttled_verify' => 'Trop de tentatives. Veuillez réessayer dans :seconds secondes.',
-        'success' => 'Votre contact est vérifié. Vous pouvez maintenant vous connecter.',
+        'success' => 'Votre adresse e-mail est vérifiée. Vous pouvez maintenant vous connecter.',
         'invalid_code' => 'Ce code est invalide ou a expiré.',
         'local_delivery_heading' => 'Où trouver votre code en développement ?',
         'local_delivery_body' => 'Les codes envoyés par e-mail arrivent dans Mailpit.',
@@ -102,7 +102,7 @@ return [
         'forgot_intro' => 'Indiquez votre adresse e-mail pour recevoir un code de réinitialisation.',
         'contact_label' => 'Adresse e-mail',
         'submit' => 'Envoyer le code',
-        'sent' => 'Si un compte correspond à ce contact, un code de réinitialisation a été envoyé.',
+        'sent' => 'Si un compte correspond à cette adresse, un code de réinitialisation a été envoyé.',
         'throttled' => 'Trop de demandes. Veuillez réessayer dans :seconds secondes.',
         'reset_link' => 'Vous avez déjà un code ?',
 

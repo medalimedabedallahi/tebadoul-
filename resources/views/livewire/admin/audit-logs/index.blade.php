@@ -53,7 +53,7 @@
                     @foreach ($entries as $entry)
                         <tr wire:key="audit-{{ $entries->firstItem() + $loop->index }}">
                             <td class="whitespace-nowrap px-4 py-3 text-sm text-ink">
-                                <time datetime="{{ $entry->created_at->toIso8601String() }}">{{ $entry->created_at->translatedFormat('j F Y, H:i') }}</time>
+                                <time datetime="{{ $entry->created_at->toIso8601String() }}">{{ $entry->created_at->translatedFormat(__('common.datetime_format')) }}</time>
                             </td>
                             <td class="px-4 py-3 text-ink">{{ __('admin.audit.actions.'.$entry->action->value) }}</td>
                             <td class="px-4 py-3 font-mono text-sm text-ink" dir="ltr">{{ $entry->actor->public_id }}</td>

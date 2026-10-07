@@ -119,7 +119,7 @@
                         <li wire:key="message-{{ $message->public_id }}" class="flex max-w-[85%] flex-col gap-1 rounded-card px-4 py-3 {{ $fromMe ? 'self-end bg-brand text-white' : 'self-start bg-surface text-ink shadow-card' }}">
                             <p class="whitespace-pre-wrap break-words text-sm">{{ $message->body }}</p>
                             <div class="flex flex-wrap items-center gap-2 text-xs {{ $fromMe ? 'text-white/80' : 'text-ink-muted' }}">
-                                <time datetime="{{ $message->created_at?->toIso8601String() }}">{{ $message->created_at?->translatedFormat('j F, H:i') }}</time>
+                                <time datetime="{{ $message->created_at?->toIso8601String() }}">{{ $message->created_at?->translatedFormat(__('common.datetime_short_format')) }}</time>
                                 @if ($fromMe && $message->read_at)
                                     <span>{{ __('matches.show.message_read') }}</span>
                                 @elseif (! $fromMe && ! $message->read_at)

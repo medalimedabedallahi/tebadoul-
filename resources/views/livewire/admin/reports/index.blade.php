@@ -34,7 +34,7 @@
                                 <div><dt class="font-semibold text-ink-muted">{{ __('moderation.reporter') }}</dt><dd class="font-mono text-ink" dir="ltr">{{ $report->reporter->public_id }}</dd></div>
                                 <div><dt class="font-semibold text-ink-muted">{{ __('moderation.reported') }}</dt><dd class="font-mono text-ink" dir="ltr">{{ $report->reportedUser->public_id }}</dd></div>
                                 <div><dt class="font-semibold text-ink-muted">{{ __('moderation.match') }}</dt><dd class="font-mono text-ink" dir="ltr">{{ $report->mobilityMatch->public_id }}</dd></div>
-                                <div><dt class="font-semibold text-ink-muted">{{ __('moderation.created_at') }}</dt><dd class="text-ink">{{ $report->created_at?->translatedFormat('j F Y, H:i') }}</dd></div>
+                                <div><dt class="font-semibold text-ink-muted">{{ __('moderation.created_at') }}</dt><dd class="text-ink">{{ $report->created_at?->translatedFormat(__('common.datetime_format')) }}</dd></div>
                             </dl>
 
                             @if ($report->details)

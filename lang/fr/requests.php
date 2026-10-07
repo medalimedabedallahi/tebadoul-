@@ -42,6 +42,7 @@ return [
         'closed_label' => 'Clôturée le :date (:reason)',
         'destinations_heading' => 'Destinations acceptées',
         'origin_heading' => 'Affectation actuelle (profil)',
+        'origin_place' => ':moughataa, :wilaya',
         'no_profile' => 'Aucun profil professionnel.',
         'actions_heading' => 'Actions',
         'back' => 'Retour à mes demandes',
