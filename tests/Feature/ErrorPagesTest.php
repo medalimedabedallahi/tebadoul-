@@ -24,6 +24,22 @@ class ErrorPagesTest extends TestCase
             ->assertDontSee('Not Found');
     }
 
+    public function test_an_unknown_page_keeps_the_language_chosen_by_the_visitor(): void
+    {
+        $this->withSession(['locale' => 'ar'])
+            ->get('/page-qui-n-existe-pas')
+            ->assertNotFound()
+            ->assertSee('<html lang="ar" dir="rtl">', false)
+            ->assertSee('الصفحة غير موجودة');
+    }
+
+    public function test_an_unknown_api_path_still_answers_json(): void
+    {
+        $this->getJson('/api/v1/inconnu')
+            ->assertNotFound()
+            ->assertJsonPath('code', 'not_found');
+    }
+
     public function test_a_refused_page_answers_in_arabic_right_to_left(): void
     {
         $this->actingAs(User::factory()->create())
