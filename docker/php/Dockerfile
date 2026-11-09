@@ -30,7 +30,7 @@ COPY docker/php/php.ini /usr/local/etc/php/conf.d/99-badal.ini
 
 WORKDIR /var/www/html
 
-FROM composer:2.9@sha256:b09bccd91a78fe8a9ab4b33d707b862e8fe54fec17782e32683ad2a69c46867d AS composer-bin
+FROM composer:2.11@sha256:8de2184c6de224f4689e8f80ed5f5edaf0030b6b8b7839a22a2bcb6722ac87d0 AS composer-bin
 
 # Developpement. Reste volontairement en root : le code est monte depuis l'hote (Docker Desktop / Windows)
 # et les dossiers storage/ et bootstrap/cache y sont crees par root (non modifiables par un uid 1000,
